@@ -1,0 +1,123 @@
+<!--
+Copyright © 2026 monterto
+Licensed under the PolyForm Noncommercial License 1.0.0.
+You may not use this software for commercial purposes.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pace Clock</title>
+  
+  <!-- Fullscreen & Mobile -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0f14">
+  
+  <!-- Icons -->
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app" role="main">
+
+    <header>
+      <button id="optionsBtn" aria-label="Open settings">⚙️</button>
+    </header>
+
+    <div id="totalClock" aria-label="Total session time">00:00.0</div>
+    <div id="digital" aria-label="Current interval time" aria-live="polite">00:00.0</div>
+
+    <canvas 
+      id="clock" 
+      width="360" 
+      height="360"
+      role="button"
+      aria-label="Tap to record lap or rest interval"
+      tabindex="0"
+    ></canvas>
+
+    <!-- Controls Container -->
+    <div class="controls-container" role="toolbar" aria-label="Session controls">
+      <button id="saveBtn" aria-label="Save session"><span>💾 Save</span></button>
+      <button id="toggleRestBtn" aria-label="Toggle rest tracking"><span>Rest ✗</span></button>
+      <button id="resetBtn" aria-label="Hold to reset session"><span>🔄 Reset</span></button>
+    </div>
+
+    <div id="list" role="log" aria-label="Lap history"></div>
+  </div>
+
+  <div id="options" role="dialog" aria-labelledby="optionsTitle" aria-modal="true">
+    <h2 id="optionsTitle" class="sr-only">Settings</h2>
+    
+    <label>
+      <input type="checkbox" id="darkToggle" checked aria-describedby="darkDesc">
+      Dark clock face
+    </label>
+    <span id="darkDesc" class="sr-only">Toggle between dark and light clock face</span>
+    <br><br>
+    
+    <label>
+      <input type="checkbox" id="guardToggle" checked aria-describedby="guardDesc">
+      Accidental press guard
+    </label>
+    <span id="guardDesc" class="sr-only">Prevent accidental double-taps within 1 second</span>
+    <br><br>
+    
+    <label>
+      <input type="checkbox" id="ghostToggle" checked aria-describedby="ghostDesc">
+      Show Ghost Hand
+    </label>
+    <span id="ghostDesc" class="sr-only">Display ghost hand showing previous lap position</span>
+    <br><br>
+    
+    <label>
+      <input type="checkbox" id="thickerHandsToggle" checked aria-describedby="thickerDesc">
+      Thicker Hands
+    </label>
+    <span id="thickerDesc" class="sr-only">Make clock hands thicker for better visibility</span>
+    <br><br>
+    
+    <button onclick="options.classList.remove('open')" aria-label="Close settings">Close</button>
+    
+    <div class="keyboard-shortcuts">
+      <h3>Keyboard Shortcuts</h3>
+      <ul>
+        <li><kbd>Space</kbd> - Record lap/rest</li>
+        <li><kbd>Ctrl+S</kbd> - Save session</li>
+        <li><kbd>Shift+Delete</kbd> - Reset session</li>
+      </ul>
+      <p style="margin-top: 12px; font-size: 0.85rem; color: var(--muted);">
+        <strong>Mobile:</strong> Hold the Reset button for 1.5 seconds
+      </p>
+    </div>
+  </div>
+
+  <!-- App Logic -->
+  <script src="app.js"></script>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(registration => {
+            console.log('Service Worker registered:', registration.scope);
+          })
+          .catch(error => {
+            console.error('Service Worker registration failed:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
