@@ -605,6 +605,77 @@ const saveBtn = document.getElementById('saveBtn');
 const options = document.getElementById('options');
 
 // ============================================================================
+// MODE SWITCHING
+// ============================================================================
+
+function switchMode(newMode) {
+  if (state.currentMode === newMode) {
+    menu.classList.remove('open');
+    menuOverlay.classList.remove('visible');
+    return;
+  }
+  
+  // Check if there's an active session
+  const hasActiveSession = 
+    (state.currentMode === 'lapTimer' && state.lapTimer.sessionStart) ||
+    (state.currentMode === 'intervalTimer' && state.intervalTimer.sessionStart);
+  
+  if (hasActiveSession) {
+    if (!confirm('Switch modes? Current session will be reset.')) {
+      return;
+    }
+  }
+  
+  // Reset current mode
+  resetSession();
+  
+  // Switch mode
+  state.currentMode = newMode;
+  
+  // Update UI
+  updateModeUI();
+  
+  // Save preference
+  saveSettings();
+  
+  // Close menu
+  menu.classList.remove('open');
+  menuOverlay.classList.remove('visible');
+}
+
+function updateModeUI() {
+  // Update menu checkmarks
+  document.querySelectorAll('.mode-item').forEach(item => {
+    const mode = item.dataset.mode;
+    if (mode === state.currentMode) {
+      item.classList.add('active');
+      item.querySelector('.mode-check').textContent = '✓';
+    } else {
+      item.classList.remove('active');
+      item.querySelector('.mode-check').textContent = '';
+    }
+  });
+  
+  // Show/hide appropriate controls and displays
+  if (state.currentMode === 'lapTimer') {
+    lapTimerControls.classList.remove('hidden');
+    list.classList.remove('hidden');
+    intervalTimerControls.classList.add('hidden');
+    intervalDisplay.classList.add('hidden');
+    canvas.classList.remove('glow-green', 'glow-yellow');
+    digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
+    
+  } else if (state.currentMode === 'intervalTimer') {
+    lapTimerControls.classList.add('hidden');
+    list.classList.add('hidden');
+    intervalTimerControls.classList.remove('hidden');
+    intervalDisplay.classList.remove('hidden');
+    digital.classList.remove('rest');
+    updateIntervalSummary();
+  }
+}
+
+// ============================================================================
 // INTERVAL TIMER FUNCTIONS
 // ============================================================================
 
