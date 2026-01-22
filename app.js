@@ -490,6 +490,8 @@ const options = document.getElementById('options');
 
 let resetHoldTimer = null;
 let resetHoldStart = null;
+let saveHoldTimer = null;
+let saveHoldStart = null;
 
 function startResetHold() {
   resetHoldStart = Date.now();
@@ -514,6 +516,49 @@ function cancelResetHold() {
   resetBtn.classList.remove('holding');
 }
 
+function startSaveHold() {
+  saveHoldStart = Date.now();
+  saveBtn.classList.add('holding');
+  
+  saveHoldTimer = setTimeout(() => {
+    // Save completed
+    saveBtn.classList.remove('holding');
+    saveBtn.classList.add('save-complete');
+    
+    // Execute save
+    stopDigitalTimer();
+    state.isFinished = true;
+    digital.textContent = 'Session Finished';
+    totalClock.textContent = fmt(Date.now() - state.sessionStart);
+    
+    // Prompt for session name if there are laps
+    if (state.laps.length > 0) {
+      const sessionStart = new Date(state.sessionStart);
+      const defaultName = formatDateForFilename(sessionStart);
+      
+      const sessionName = prompt('Enter a name for this session (or leave blank for default):', defaultName);
+      
+      if (sessionName !== null) { // User didn't cancel
+        const finalName = sessionName.trim() || defaultName;
+        exportWorkout(finalName);
+      }
+    }
+    
+    setTimeout(() => {
+      saveBtn.classList.remove('save-complete');
+    }, 500);
+  }, RESET_HOLD_TIME);
+}
+
+function cancelSaveHold() {
+  if (saveHoldTimer) {
+    clearTimeout(saveHoldTimer);
+    saveHoldTimer = null;
+  }
+  saveHoldStart = null;
+  saveBtn.classList.remove('holding');
+}
+
 resetBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   startResetHold();
@@ -533,6 +578,25 @@ resetBtn.addEventListener('touchend', (e) => {
   cancelResetHold();
 });
 
+saveBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  startSaveHold();
+});
+
+saveBtn.addEventListener('pointerup', (e) => {
+  e.preventDefault();
+  cancelSaveHold();
+});
+
+saveBtn.addEventListener('pointerleave', (e) => {
+  cancelSaveHold();
+});
+
+saveBtn.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  cancelSaveHold();
+});
+
 // ============================================================================
 // EVENT HANDLERS
 // ============================================================================
@@ -550,6 +614,17 @@ function initializeUI() {
 const canvas = document.getElementById('clock');
 canvas.addEventListener('pointerdown', handleTap);
 
+// Prevent text selection on buttons and controls
+const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, optionsBtn];
+preventSelectElements.forEach(el => {
+  el.addEventListener('selectstart', (e) => e.preventDefault());
+  el.addEventListener('mousedown', (e) => {
+    if (e.detail > 1) {
+      e.preventDefault(); // Prevent double-click selection
+    }
+  });
+});
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   if (e.key === ' ' && !options.classList.contains('open')) {
@@ -557,37 +632,16 @@ document.addEventListener('keydown', (e) => {
     handleTap();
   } else if (e.key === 's' && e.ctrlKey) {
     e.preventDefault();
-    saveBtn.click();
+    // Simulate hold for keyboard save
+    startSaveHold();
   } else if (e.key === 'Delete' && e.shiftKey) {
     e.preventDefault();
     // Simulate hold for keyboard reset
     startResetHold();
-    setTimeout(() => {
-      // Auto-release after hold time to complete reset
-    }, RESET_HOLD_TIME);
   }
 });
 
-// Finish with session name prompt
-saveBtn.addEventListener('click', () => {
-  stopDigitalTimer();
-  state.isFinished = true;
-  digital.textContent = 'Session Finished';
-  totalClock.textContent = fmt(Date.now() - state.sessionStart);
-  
-  // Prompt for session name if there are laps
-  if (state.laps.length > 0) {
-    const sessionStart = new Date(state.sessionStart);
-    const defaultName = formatDateForFilename(sessionStart);
-    
-    const sessionName = prompt('Enter a name for this session (or leave blank for default):', defaultName);
-    
-    if (sessionName !== null) { // User didn't cancel
-      const finalName = sessionName.trim() || defaultName;
-      exportWorkout(finalName);
-    }
-  }
-});
+// Finish with session name prompt - REMOVED, now handled by hold interaction
 
 // Options
 optionsBtn.onclick = () => options.classList.add('open');
