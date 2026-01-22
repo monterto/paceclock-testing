@@ -493,6 +493,30 @@ let resetHoldStart = null;
 let saveHoldTimer = null;
 let saveHoldStart = null;
 
+function resetSession() {
+  // Stop any running timers
+  stopDigitalTimer();
+  
+  // Reset state while preserving user settings
+  state.ghost = null;
+  state.laps = [];
+  state.lastTap = null;
+  state.sessionStart = null;
+  state.hasCompletedLap = false;
+  state.lastSplit = 0;
+  state.timerRunning = false;
+  state.digitalTimerRunning = false;
+  state.isFinished = false;
+  state.lapCount = 1;
+  // Note: mode, trackRest, dark, guard, ghostHand, thickerHands are preserved
+  
+  // Clear UI
+  list.innerHTML = '';
+  digital.textContent = '00:00.0';
+  totalClock.textContent = '00:00.0';
+  digital.classList.toggle('rest', state.mode === 'rest');
+}
+
 function startResetHold() {
   resetHoldStart = Date.now();
   resetBtn.classList.add('holding');
@@ -501,9 +525,13 @@ function startResetHold() {
     // Reset completed
     resetBtn.classList.remove('holding');
     resetBtn.classList.add('reset-complete');
+    
+    // Execute reset
+    resetSession();
+    
     setTimeout(() => {
-      location.reload();
-    }, 200);
+      resetBtn.classList.remove('reset-complete');
+    }, 500);
   }, RESET_HOLD_TIME);
 }
 
