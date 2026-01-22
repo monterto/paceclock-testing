@@ -1113,6 +1113,15 @@ guardToggle.onchange = e => {
   saveSettings();
 };
 
+// Visibility change
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    requestWakeLock();
+  } else {
+    releaseWakeLock();
+  }
+});
+
 // Interval timer controls
 configIntervalsBtn.onclick = () => {
   intervalConfigPanel.classList.add('open');
@@ -1164,15 +1173,6 @@ cancelIntervalConfig.onclick = () => {
   
   intervalConfigPanel.classList.remove('open');
 };
-
-// Visibility change
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    requestWakeLock();
-  } else {
-    releaseWakeLock();
-  }
-});
 
 // ============================================================================
 // INITIALIZATION
