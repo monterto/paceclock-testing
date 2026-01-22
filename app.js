@@ -599,7 +599,6 @@ const ghostToggle = document.getElementById('ghostToggle');
 const thickerHandsToggle = document.getElementById('thickerHandsToggle');
 const guardToggle = document.getElementById('guardToggle');
 const darkToggle = document.getElementById('darkToggle');
-const optionsBtn = document.getElementById('optionsBtn');
 const resetBtn = document.getElementById('resetBtn');
 const saveBtn = document.getElementById('saveBtn');
 const options = document.getElementById('options');
@@ -1142,8 +1141,6 @@ document.addEventListener('keydown', (e) => {
 
 // Finish with session name prompt - REMOVED, now handled by hold interaction
 
-// Options
-optionsBtn.onclick = () => options.classList.add('open');
 
 // Dark mode toggle
 darkToggle.onchange = e => {
