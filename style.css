@@ -25,6 +25,9 @@ body {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
 }
 
 .app {
@@ -106,6 +109,10 @@ canvas {
   outline: none;
   border-radius: 50%;
   filter: drop-shadow(0 0 0 transparent);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 canvas:hover {
@@ -113,13 +120,13 @@ canvas:hover {
 }
 
 canvas:focus {
-  outline: 3px solid var(--accent);
-  outline-offset: 4px;
+  outline: none;
   filter: drop-shadow(0 0 25px rgba(77, 163, 255, 0.4));
 }
 
 canvas:active {
   transform: scale(0.98);
+  filter: drop-shadow(0 0 30px rgba(77, 163, 255, 0.5));
 }
 
 /* Controls */
@@ -149,6 +156,9 @@ canvas:active {
   overflow: hidden;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
 }
 
 #saveBtn:hover,
@@ -166,6 +176,29 @@ canvas:active {
 #resetBtn:active,
 #toggleRestBtn:active {
   transform: translateY(0);
+}
+
+/* Save button hold animation */
+#saveBtn.holding::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(77, 163, 255, 0.3), rgba(77, 163, 255, 0.5));
+  animation: resetProgress 1.5s linear forwards;
+  z-index: 0;
+}
+
+#saveBtn.holding {
+  background: #1f2a3a;
+  color: #4da3ff;
+}
+
+#saveBtn.save-complete {
+  background: #4da3ff;
+  color: white;
 }
 
 /* Reset button hold animation */
@@ -216,6 +249,9 @@ canvas:active {
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--muted) var(--panel);
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
 }
 
 #list::-webkit-scrollbar {
@@ -395,9 +431,14 @@ canvas:active {
 }
 
 /* Focus Visible */
-*:focus-visible {
+button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Remove default focus for canvas */
+canvas:focus-visible {
+  outline: none;
 }
 
 /* Animations */
