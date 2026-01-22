@@ -259,14 +259,20 @@ function fmt(ms) {
 // CLOCK RENDERING
 // ============================================================================
 
+let canvasElement = null;
+let canvasContext = null;
+
 function drawClock() {
-  const canvas = document.getElementById('clock');
-  if (!canvas) {
-    console.error('Canvas not found!');
-    return;
+  if (!canvasElement) {
+    canvasElement = document.getElementById('clock');
+    if (!canvasElement) {
+      console.error('Canvas not found!');
+      return;
+    }
+    canvasContext = canvasElement.getContext('2d');
   }
-  const ctx = canvas.getContext('2d');
   
+  const ctx = canvasContext;
   ctx.clearRect(0, 0, 360, 360);
   const cx = 180, cy = 180, r = 162;
 
@@ -1028,19 +1034,18 @@ document.getElementById('menuSettings').onclick = () => {
   options.classList.add('open');
 };
 
-// Clock tap
-const canvas = document.getElementById('clock');
-canvas.addEventListener('pointerdown', handleTap);
-
 // Prevent text selection on buttons and controls
-const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn, optionsBtn, configIntervalsBtn, stopIntervalBtn];
+const canvas = document.getElementById('clock');
+const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn, configIntervalsBtn, stopIntervalBtn];
 preventSelectElements.forEach(el => {
-  el.addEventListener('selectstart', (e) => e.preventDefault());
-  el.addEventListener('mousedown', (e) => {
-    if (e.detail > 1) {
-      e.preventDefault(); // Prevent double-click selection
-    }
-  });
+  if (el) {
+    el.addEventListener('selectstart', (e) => e.preventDefault());
+    el.addEventListener('mousedown', (e) => {
+      if (e.detail > 1) {
+        e.preventDefault(); // Prevent double-click selection
+      }
+    });
+  }
 });
 
 // Keyboard shortcuts
