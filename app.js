@@ -259,15 +259,25 @@ function fmt(ms) {
 // CLOCK RENDERING
 // ============================================================================
 
+let drawCount = 0;
+
 function drawClock() {
   if (!canvas) {
-    console.error('Canvas not found!');
+    if (drawCount === 0) {
+      console.error('drawClock: Canvas not found!');
+    }
     return;
   }
   
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, 360, 360);
-  const cx = 180, cy = 180, r = 162;
+  try {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 360, 360);
+    const cx = 180, cy = 180, r = 162;
+    
+    drawCount++;
+    if (drawCount === 1) {
+      console.log('drawClock: First draw successful');
+    }
 
   // Background
   ctx.fillStyle = state.display.dark ? '#0b0f14' : '#f2f2f2';
@@ -388,6 +398,12 @@ function drawClock() {
   ctx.beginPath();
   ctx.arc(cx, cy, 8, 0, Math.PI * 2);
   ctx.fill();
+  
+  } catch (err) {
+    if (drawCount === 0) {
+      console.error('drawClock error:', err);
+    }
+  }
 }
 
 // ============================================================================
@@ -872,6 +888,7 @@ let resetHoldTimer = null;
 let resetHoldStart = null;
 let saveHoldTimer = null;
 let saveHoldStart = null;
+let resetIntervalHoldTimer = null;
 
 function resetSession() {
   // Stop any running timers
@@ -1302,8 +1319,6 @@ function setupEventListeners() {
 // EVENT HANDLERS
 // ============================================================================
 
-let resetIntervalHoldTimer = null;
-
 function initializeUI() {
   darkToggle.checked = state.display.dark;
   toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ✓' : 'Rest ✗';
@@ -1609,22 +1624,38 @@ function init() {
   console.log('Initializing app...');
   
   initializeDOM();
+  
+  if (!canvas) {
+    console.error('CRITICAL: Canvas element not found!');
+    return;
+  }
+  
+  console.log('Canvas found:', canvas);
+  console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+  
   loadSettings();
   setupEventListeners();
   initializeUI();
   requestWakeLock();
   
   console.log('Starting render loop...');
+  let frameCount = 0;
   
   (function render() {
     drawClock();
+    frameCount++;
+    if (frameCount === 1) {
+      console.log('First frame rendered');
+    }
     requestAnimationFrame(render);
   })();
 }
 
 // Wait for DOM to be ready
 if (document.readyState === 'loading') {
+  console.log('Waiting for DOM...');
   document.addEventListener('DOMContentLoaded', init);
 } else {
+  console.log('DOM already loaded');
   init();
 }
