@@ -155,7 +155,9 @@ canvas.glow-yellow {
 
 #saveBtn,
 #resetBtn,
-#toggleRestBtn {
+#toggleRestBtn,
+#configIntervalsBtn,
+#stopIntervalBtn {
   font-size: 0.85rem;
   padding: 10px 12px;
   border-radius: var(--border-radius);
@@ -179,9 +181,13 @@ canvas.glow-yellow {
 #saveBtn:hover,
 #resetBtn:hover,
 #toggleRestBtn:hover,
+#configIntervalsBtn:hover,
+#stopIntervalBtn:hover,
 #saveBtn:focus,
 #resetBtn:focus,
-#toggleRestBtn:focus {
+#toggleRestBtn:focus,
+#configIntervalsBtn:focus,
+#stopIntervalBtn:focus {
   background: #242d42;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -189,7 +195,9 @@ canvas.glow-yellow {
 
 #saveBtn:active,
 #resetBtn:active,
-#toggleRestBtn:active {
+#toggleRestBtn:active,
+#configIntervalsBtn:active,
+#stopIntervalBtn:active {
   transform: translateY(0);
 }
 
@@ -250,7 +258,9 @@ canvas.glow-yellow {
 
 #resetBtn span,
 #saveBtn span,
-#toggleRestBtn span {
+#toggleRestBtn span,
+#configIntervalsBtn span,
+#stopIntervalBtn span {
   position: relative;
   z-index: 1;
 }
@@ -498,7 +508,9 @@ canvas:focus-visible {
 
   #saveBtn,
   #resetBtn,
-  #toggleRestBtn {
+  #toggleRestBtn,
+  #configIntervalsBtn,
+  #stopIntervalBtn {
     font-size: 0.8rem;
     min-width: 85px;
     padding: 8px 10px;
