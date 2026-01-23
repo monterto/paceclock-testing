@@ -157,7 +157,8 @@ canvas.glow-yellow {
 #resetBtn,
 #toggleRestBtn,
 #configIntervalsBtn,
-#stopIntervalBtn {
+#stopIntervalBtn,
+#resetIntervalBtn {
   font-size: 0.85rem;
   padding: 10px 12px;
   border-radius: var(--border-radius);
@@ -183,11 +184,13 @@ canvas.glow-yellow {
 #toggleRestBtn:hover,
 #configIntervalsBtn:hover,
 #stopIntervalBtn:hover,
+#resetIntervalBtn:hover,
 #saveBtn:focus,
 #resetBtn:focus,
 #toggleRestBtn:focus,
 #configIntervalsBtn:focus,
-#stopIntervalBtn:focus {
+#stopIntervalBtn:focus,
+#resetIntervalBtn:focus {
   background: #242d42;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -197,7 +200,8 @@ canvas.glow-yellow {
 #resetBtn:active,
 #toggleRestBtn:active,
 #configIntervalsBtn:active,
-#stopIntervalBtn:active {
+#stopIntervalBtn:active,
+#resetIntervalBtn:active {
   transform: translateY(0);
 }
 
@@ -225,7 +229,8 @@ canvas.glow-yellow {
 }
 
 /* Reset button hold animation */
-#resetBtn.holding::before {
+#resetBtn.holding::before,
+#resetIntervalBtn.holding::before {
   content: '';
   position: absolute;
   top: 0;
@@ -237,12 +242,14 @@ canvas.glow-yellow {
   z-index: 0;
 }
 
-#resetBtn.holding {
+#resetBtn.holding,
+#resetIntervalBtn.holding {
   background: #2a1f1f;
   color: #ff6b6b;
 }
 
-#resetBtn.reset-complete {
+#resetBtn.reset-complete,
+#resetIntervalBtn.reset-complete {
   background: #ff4d4d;
   color: white;
 }
@@ -260,7 +267,8 @@ canvas.glow-yellow {
 #saveBtn span,
 #toggleRestBtn span,
 #configIntervalsBtn span,
-#stopIntervalBtn span {
+#stopIntervalBtn span,
+#resetIntervalBtn span {
   position: relative;
   z-index: 1;
 }
@@ -510,7 +518,8 @@ canvas:focus-visible {
   #resetBtn,
   #toggleRestBtn,
   #configIntervalsBtn,
-  #stopIntervalBtn {
+  #stopIntervalBtn,
+  #resetIntervalBtn {
     font-size: 0.8rem;
     min-width: 85px;
     padding: 8px 10px;
