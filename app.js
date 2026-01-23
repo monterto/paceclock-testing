@@ -259,20 +259,13 @@ function fmt(ms) {
 // CLOCK RENDERING
 // ============================================================================
 
-let canvasElement = null;
-let canvasContext = null;
-
 function drawClock() {
-  if (!canvasElement) {
-    canvasElement = document.getElementById('clock');
-    if (!canvasElement) {
-      console.error('Canvas not found!');
-      return;
-    }
-    canvasContext = canvasElement.getContext('2d');
+  if (!canvas) {
+    console.error('Canvas not found!');
+    return;
   }
   
-  const ctx = canvasContext;
+  const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, 360, 360);
   const cx = 180, cy = 180, r = 162;
 
@@ -1106,11 +1099,14 @@ document.getElementById('menuSettings').onclick = () => {
 };
 
 // Prevent text selection on buttons and controls
-canvas.addEventListener('pointerdown', handleTap);
+if (canvas) {
+  canvas.addEventListener('pointerdown', handleTap);
+}
 
 const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn];
 if (configIntervalsBtn) preventSelectElements.push(configIntervalsBtn);
 if (stopIntervalBtn) preventSelectElements.push(stopIntervalBtn);
+if (resetIntervalBtn) preventSelectElements.push(resetIntervalBtn);
 
 preventSelectElements.forEach(el => {
   if (el) {
@@ -1296,9 +1292,14 @@ cancelIntervalConfig.onclick = () => {
 // INITIALIZATION
 // ============================================================================
 
+console.log('Initializing app...');
+console.log('Canvas element:', canvas);
+
 loadSettings();
 initializeUI();
 requestWakeLock();
+
+console.log('Starting render loop...');
 
 (function render() {
   drawClock();
