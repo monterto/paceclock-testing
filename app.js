@@ -57,6 +57,7 @@ const DEFAULT_STATE = {
     intervalStart: null,
     isPaused: false,
     ghostSeconds: null,
+    ghostColor: null,
     lastBeep: null,
     pauseTime: null
   }
@@ -318,6 +319,31 @@ function drawClock() {
   const baseWidth = state.display.thickerHands ? 6 : 3;
 
   if (state.currentMode === 'lapTimer') {
+    // Draw lap timer ghost hand FIRST (behind regular hands)
+    if (state.lapTimer.ghost && state.display.ghostHand) {
+      const a = state.lapTimer.ghost.seconds * Math.PI / 30 - Math.PI / 2;
+      ctx.globalAlpha = 0.5;
+      
+      // Subtle outline for better visibility
+      ctx.strokeStyle = state.display.dark ? '#000' : '#fff';
+      ctx.lineWidth = 8;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
+      ctx.stroke();
+      
+      // Colored ghost hand
+      ctx.strokeStyle = state.lapTimer.ghost.color;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
+      ctx.stroke();
+      
+      ctx.globalAlpha = 1;
+    }
+    
     // Lap timer: show all 4 hands
     state.lapTimer.hands.forEach(h => {
       const s = (base + h.offset) % 60;
@@ -341,20 +367,32 @@ function drawClock() {
       ctx.stroke();
     });
 
-    // Lap timer ghost hand
-    if (state.lapTimer.ghost && state.display.ghostHand) {
-      const a = state.lapTimer.ghost.seconds * Math.PI / 30 - Math.PI / 2;
+  } else if (state.currentMode === 'intervalTimer') {
+    // Draw interval timer ghost hand FIRST (behind regular hands)
+    if (state.display.ghostHand && state.intervalTimer.ghostSeconds !== null && state.intervalTimer.ghostColor) {
+      const a = state.intervalTimer.ghostSeconds * Math.PI / 30 - Math.PI / 2;
       ctx.globalAlpha = 0.5;
-      ctx.strokeStyle = state.lapTimer.ghost.color;
-      ctx.lineWidth = 6;
+      
+      // Subtle outline for better visibility
+      ctx.strokeStyle = state.display.dark ? '#000' : '#fff';
+      ctx.lineWidth = 10;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
       ctx.stroke();
+      
+      // Colored ghost hand (uses the color from session start)
+      ctx.strokeStyle = state.intervalTimer.ghostColor;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
+      ctx.stroke();
+      
       ctx.globalAlpha = 1;
     }
-  } else if (state.currentMode === 'intervalTimer') {
+    
     // Interval timer: show all 4 hands continuously
     state.lapTimer.hands.forEach(h => {
       const s = (base + h.offset) % 60;
@@ -377,20 +415,6 @@ function drawClock() {
       ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
       ctx.stroke();
     });
-
-    // Interval timer: red hand as ghost showing last start/stop
-    if (state.display.ghostHand && state.intervalTimer.ghostSeconds !== null) {
-      const a = state.intervalTimer.ghostSeconds * Math.PI / 30 - Math.PI / 2;
-      ctx.globalAlpha = 0.5;
-      ctx.strokeStyle = '#ff4d4d'; // Always red for interval ghost
-      ctx.lineWidth = 8;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
   }
 
   // Center dot
@@ -839,8 +863,10 @@ function startIntervalTimer() {
   state.intervalTimer.isPaused = false;
   state.intervalTimer.currentRound = 1;
   
-  // Set ghost hand to current position (red hand at top = 0)
-  state.intervalTimer.ghostSeconds = 0;
+  // Determine which hand is closest to top at session start
+  const ghostHand = calculateGhostHand(now);
+  state.intervalTimer.ghostColor = ghostHand.color;
+  state.intervalTimer.ghostSeconds = ghostHand.seconds;
   
   canvas.classList.add('glow-green');
   intervalStatus.textContent = 'GET READY';
@@ -887,7 +913,7 @@ function transitionIntervalPhase() {
   // Final beep for transition
   beep(1000, 200);
   
-  // Update ghost hand to current clock position
+  // Update ghost hand position to current clock position (keep same color throughout session)
   const currentSeconds = (now / 1000) % 60;
   state.intervalTimer.ghostSeconds = currentSeconds;
   
@@ -1040,6 +1066,7 @@ function resetSession() {
     state.intervalTimer.intervalStart = null;
     state.intervalTimer.isPaused = false;
     state.intervalTimer.ghostSeconds = null;
+    state.intervalTimer.ghostColor = null;
     state.intervalTimer.lastBeep = null;
     state.intervalTimer.pauseTime = null;
     
