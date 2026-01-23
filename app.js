@@ -1485,9 +1485,6 @@ stopIntervalBtn.onclick = () => {
   }
 };
 
-// Interval reset button (uses same hold mechanism as lap timer reset)
-let resetIntervalHoldTimer = null;
-
 resetIntervalBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   resetIntervalBtn.classList.add('holding');
