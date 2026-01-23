@@ -1,1391 +1,1514 @@
-/*
-Copyright © 2026 monterto
-Licensed under the PolyForm Noncommercial License 1.0.0.
-Commercial use is prohibited.
-*/
+// ============================================
+// MAIN APP INITIALIZATION
+// ============================================
 
-// ============================================================================
-// STATE MANAGEMENT
-// ============================================================================
+// Randomize hub emoji on load
+document.getElementById('hubEmoji').textContent = "🐖";
 
-const DEFAULT_STATE = {
-  currentMode: 'lapTimer',
+// Event listeners - wait for DOM to load
+document.addEventListener('DOMContentLoaded', function() {
+  // App cards
+  document.getElementById('tipCalcCard').addEventListener('click', function() {
+    loadApp('tipcalc');
+  });
+  document.getElementById('hoursCalcCard').addEventListener('click', function() {
+    loadApp('hourscalc');
+  });
+  document.getElementById('endOfDayCard').addEventListener('click', function() {
+    loadApp('endofday');
+  });
   
-  // Shared display settings
-  display: {
-    dark: true,
-    ghostHand: true,
-    thickerHands: true
-  },
+  // Back button
+  document.getElementById('backBtn').addEventListener('click', backToHub);
   
-  // Lap timer state
-  lapTimer: {
-    trackRest: true,
-    guard: true,
-    hands: [
-      { color: '#ff4d4d', offset: 0 },
-      { color: '#4da3ff', offset: 15 },
-      { color: '#4dff88', offset: 30 },
-      { color: '#ffd24d', offset: 45 }
-    ],
-    ghost: null,
-    laps: [],
-    lastTap: null,
-    sessionStart: null,
-    mode: 'rest',
-    hasCompletedLap: false,
-    lastSplit: 0,
-    timerRunning: false,
-    digitalTimerRunning: false,
-    isFinished: false,
-    lapCount: 1
-  },
+  // Info modal
+  document.getElementById('infoBtn').addEventListener('click', openInfoModal);
+  document.getElementById('closeModalBtn').addEventListener('click', closeInfoModal);
+  document.getElementById('infoModal').addEventListener('click', function(e) {
+    if (e.target.id === 'infoModal') {
+      closeInfoModal();
+    }
+  });
   
-  // Interval timer state
-  intervalTimer: {
-    countdown: 5,
-    workTime: 60,
-    restTime: 60,
-    totalRounds: null,
-    currentRound: 0,
-    completedRounds: [],
-    phase: 'waiting',
-    timeRemaining: 0,
-    beepEnabled: true,
-    volume: 70,
-    sessionStart: null,
-    intervalStart: null,
-    isPaused: false,
-    ghostSeconds: null,
-    lastBeep: null,
-    pauseTime: null
+  // Check if we should restore last app
+  const lastApp = localStorage.getItem('lastActiveApp');
+  if (lastApp && (lastApp === 'tipcalc' || lastApp === 'hourscalc' || lastApp === 'endofday')) {
+    loadApp(lastApp);
   }
-};
+});
 
-const state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+function openInfoModal() {
+  document.getElementById('infoModal').classList.add('show');
+}
 
-// ============================================================================
-// STORAGE UTILITIES
-// ============================================================================
+function closeInfoModal() {
+  document.getElementById('infoModal').classList.remove('show');
+}
 
-function loadSettings() {
-  try {
-    const saved = localStorage.getItem('clockSettings');
+function loadApp(appName) {
+  document.getElementById('hubView').style.display = 'none';
+  document.getElementById('appView').classList.add('active');
+  
+  // Save which app is active
+  localStorage.setItem('lastActiveApp', appName);
+  
+  const container = document.getElementById('appContainer');
+  
+  if (appName === 'tipcalc') {
+    document.getElementById('currentAppTitle').textContent = 'Tip Breakdown';
+    container.innerHTML = getTipCalcHTML();
+    initTipCalc();
+  } else if (appName === 'hourscalc') {
+    document.getElementById('currentAppTitle').textContent = 'Hours Calculator';
+    container.innerHTML = getHoursCalcHTML();
+    initHoursCalc();
+  } else if (appName === 'endofday') {
+    document.getElementById('currentAppTitle').textContent = 'End of Day';
+    container.innerHTML = getEndOfDayHTML();
+    initEndOfDay();
+  }
+}
+
+function backToHub() {
+  document.getElementById('appView').classList.remove('active');
+  document.getElementById('hubView').style.display = 'flex';
+  document.getElementById('appContainer').innerHTML = '';
+  
+  // Clear last active app when returning to hub
+  localStorage.removeItem('lastActiveApp');
+}
+
+// ============================================
+// TIP CALCULATOR
+// ============================================
+
+function getTipCalcHTML() {
+  return `
+<style>
+  .tip-app {
+    width: 100%;
+    max-width: 420px;
+    margin: 1rem auto;
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  /* Primary Inputs Section */
+  .tip-primary-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  
+  .tip-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  
+  .tip-field label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  
+  .tip-field input {
+    width: 100%;
+    background-color: #0c0e13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.65rem;
+    font-size: 1.1rem;
+    color: var(--text);
+    font-weight: 600;
+  }
+  
+  .tip-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  
+  .tip-field input.error {
+    border-color: var(--warning);
+  }
+  
+  /* Secondary Inputs - Percentages & Advanced */
+  .tip-secondary {
+    display: grid;
+    grid-template-columns: 1fr 1fr 40px;
+    gap: 0.5rem;
+    align-items: end;
+  }
+  
+  .tip-secondary .tip-field {
+    gap: 0.15rem;
+  }
+  
+  .tip-secondary .tip-field label {
+    font-size: 0.7rem;
+    opacity: 0.8;
+  }
+  
+  .tip-secondary .tip-field input {
+    padding: 0.5rem;
+    font-size: 0.95rem;
+  }
+  
+  .tip-icon-btn {
+    width: 40px;
+    height: 40px;
+    background-color: #0c0e13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  
+  .tip-icon-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background-color: rgba(77, 163, 255, 0.1);
+  }
+  
+  .tip-icon-btn.saved {
+    border-color: #51cf66;
+    color: #51cf66;
+    background-color: rgba(81, 207, 102, 0.2);
+    animation: pulse 0.6s ease-in-out;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+  }
+  
+  /* Advanced inputs (Large Party, Cash) */
+  .tip-advanced {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  
+  .tip-advanced .tip-field label {
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+  
+  .tip-advanced .tip-field input {
+    padding: 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+  
+  .tip-warning {
+    background-color: rgba(255, 107, 107, 0.1);
+    border: 1px solid var(--warning);
+    border-radius: 6px;
+    padding: 0.6rem;
+    color: var(--warning);
+    font-size: 0.8rem;
+    display: none;
+    text-align: center;
+    font-weight: 500;
+  }
+  
+  .tip-warning.show {
+    display: block;
+  }
+  
+  /* Outputs - Prominent Display */
+  .tip-outputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background-color: #0c0e13;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+  }
+  
+  .tip-output {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  
+  .tip-output span {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.3rem;
+  }
+  
+  .tip-output strong {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  
+  .tip-output.highlight {
+    background-color: rgba(77, 163, 255, 0.1);
+    border: 2px solid var(--accent);
+    padding: 0.4rem;
+  }
+  
+  .tip-output.highlight span {
+    color: var(--accent);
+  }
+  
+  .tip-output.highlight strong {
+    font-size: 1.5rem;
+    color: var(--accent);
+  }
+  
+  .tip-output.negative strong {
+    color: var(--warning);
+  }
+  
+  .tip-save-btn {
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.7rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 0.25rem;
+  }
+  
+  .tip-save-btn:hover {
+    background-color: #3d8fe6;
+  }
+  
+  .tip-pig {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 1.4rem;
+    animation: bounce 2s ease-in-out infinite;
+  }
+  
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  
+  /* Mobile optimizations */
+  @media (max-width: 400px) {
+    .tip-app {
+      padding: 0.75rem;
+      gap: 0.6rem;
+      margin: 0.5rem auto;
+    }
+    
+    .tip-field input {
+      padding: 0.55rem;
+      font-size: 1rem;
+    }
+    
+    .tip-outputs {
+      padding: 0.5rem;
+    }
+    
+    .tip-output strong {
+      font-size: 1.1rem;
+    }
+    
+    .tip-output.highlight strong {
+      font-size: 1.3rem;
+    }
+  }
+</style>
+
+<div class="tip-app">
+  <!-- Primary Inputs: Owed & Sales -->
+  <div class="tip-primary-inputs">
+    <div class="tip-field">
+      <label>Owed</label>
+      <input id="owed" type="number" step="0.01" placeholder="0.00" inputmode="decimal" />
+    </div>
+    <div class="tip-field">
+      <label>Total Net Sales</label>
+      <input id="sales" type="number" step="0.01" placeholder="0.00" inputmode="decimal" />
+    </div>
+  </div>
+
+  <!-- Secondary: Percentages & Settings -->
+  <div class="tip-secondary">
+    <div class="tip-field">
+      <label>BoH %</label>
+      <input id="bohPercent" type="number" step="0.01" inputmode="decimal" />
+    </div>
+    <div class="tip-field">
+      <label>FoH %</label>
+      <input id="fohPercent" type="number" step="0.01" inputmode="decimal" />
+    </div>
+    <button class="tip-icon-btn" id="savePreset" title="Save Preset">💾</button>
+  </div>
+
+  <!-- Advanced: Large Party & Cash -->
+  <div class="tip-advanced">
+    <div class="tip-field">
+      <label>Large Party (1%)</label>
+      <input id="largeParty" type="number" step="0.01" placeholder="0.00" inputmode="decimal" />
+    </div>
+    <div class="tip-field">
+      <label>Cash</label>
+      <input id="cash" type="number" step="0.01" placeholder="0.00" inputmode="decimal" />
+    </div>
+  </div>
+
+  <!-- Warning -->
+  <div class="tip-warning" id="warningBox">
+    ⚠️ Final tips are negative!
+  </div>
+
+  <!-- Outputs - Prominent Card -->
+  <div class="tip-outputs">
+    <div class="tip-output">
+      <span>BoH</span>
+      <strong id="boh">$0.00</strong>
+    </div>
+    <div class="tip-output">
+      <span>FoH</span>
+      <strong id="foh">$0.00</strong>
+    </div>
+    <div class="tip-output highlight" id="tipsOutput">
+      <span>Tips</span>
+      <strong id="tips">$0.00</strong>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <button class="tip-save-btn" id="saveToEndOfDay">
+    → Send to End of Day
+  </button>
+  
+  <button class="tip-icon-btn" id="clearBtn" title="Clear All" style="width: 100%; margin-top: 0.25rem;">
+    🗑️ Clear All
+  </button>
+
+  <div class="tip-pig" id="pigDisplay"></div>
+</div>`;
+}
+
+function initTipCalc() {
+  const DEFAULT_BOH = 5;
+  const DEFAULT_FOH = 3;
+
+  const owed = document.getElementById("owed");
+  const sales = document.getElementById("sales");
+  const bohPercent = document.getElementById("bohPercent");
+  const fohPercent = document.getElementById("fohPercent");
+  const largeParty = document.getElementById("largeParty");
+  const cash = document.getElementById("cash");
+  const bohEl = document.getElementById("boh");
+  const fohEl = document.getElementById("foh");
+  const tipsEl = document.getElementById("tips");
+  const tipsOutput = document.getElementById("tipsOutput");
+  const warningBox = document.getElementById("warningBox");
+  const pigDisplay = document.getElementById("pigDisplay");
+  const savePresetBtn = document.getElementById("savePreset");
+  const clearBtn = document.getElementById("clearBtn");
+
+  const round2 = n => Math.round(n * 100) / 100;
+  const usd = n => `$${round2(n).toFixed(2)}`;
+
+  let currentTipValue = 0;
+
+  function validateInput(input) {
+    const value = parseFloat(input.value);
+    if (input.value && (isNaN(value) || value < 0)) {
+      input.classList.add('error');
+      return false;
+    } else {
+      input.classList.remove('error');
+      return true;
+    }
+  }
+
+  function calculate() {
+    const validInputs = [
+      validateInput(owed),
+      validateInput(sales),
+      validateInput(bohPercent),
+      validateInput(fohPercent)
+    ].every(v => v);
+
+    if (!validInputs) return;
+
+    const o = parseFloat(owed.value) || 0;
+    const s = parseFloat(sales.value) || 0;
+    const bohP = (parseFloat(bohPercent.value) || 0) / 100;
+    const fohP = (parseFloat(fohPercent.value) || 0) / 100;
+    const lp = parseFloat(largeParty.value) || 0;
+    const c = parseFloat(cash.value) || 0;
+
+    const boh = s * bohP;
+    const foh = s * fohP;
+    const largePartyTip = lp * 0.01;
+    const tips = o - (boh + foh) - largePartyTip + c;
+
+    currentTipValue = tips;
+
+    bohEl.textContent = usd(boh);
+    fohEl.textContent = usd(foh);
+    tipsEl.textContent = usd(tips);
+
+    if (tips < 0) {
+      warningBox.classList.add('show');
+      tipsOutput.classList.add('negative');
+    } else {
+      warningBox.classList.remove('show');
+      tipsOutput.classList.remove('negative');
+    }
+  }
+
+  function loadPreset() {
+    const saved = localStorage.getItem('tipCalcPreset');
     if (saved) {
-      const s = JSON.parse(saved);
-      state.display.dark = s.dark ?? state.display.dark;
-      state.lapTimer.trackRest = s.trackRest ?? state.lapTimer.trackRest;
-      state.lapTimer.guard = s.guard ?? state.lapTimer.guard;
-      state.display.ghostHand = s.ghostHand ?? state.display.ghostHand;
-      state.display.thickerHands = s.thickerHands ?? state.display.thickerHands;
-      state.currentMode = s.currentMode ?? state.currentMode;
-      
-      // Load interval timer settings
-      if (s.intervalTimer) {
-        state.intervalTimer.countdown = s.intervalTimer.countdown ?? state.intervalTimer.countdown;
-        state.intervalTimer.workTime = s.intervalTimer.workTime ?? state.intervalTimer.workTime;
-        state.intervalTimer.restTime = s.intervalTimer.restTime ?? state.intervalTimer.restTime;
-        state.intervalTimer.totalRounds = s.intervalTimer.totalRounds ?? state.intervalTimer.totalRounds;
-        state.intervalTimer.beepEnabled = s.intervalTimer.beepEnabled ?? state.intervalTimer.beepEnabled;
-        state.intervalTimer.volume = s.intervalTimer.volume ?? state.intervalTimer.volume;
-      }
+      const preset = JSON.parse(saved);
+      bohPercent.value = preset.boh;
+      fohPercent.value = preset.foh;
+    } else {
+      bohPercent.value = DEFAULT_BOH;
+      fohPercent.value = DEFAULT_FOH;
     }
-  } catch (err) {
-    console.error('Error loading settings:', err);
-  }
-}
-
-function saveSettings() {
-  try {
-    const settings = {
-      dark: state.display.dark,
-      trackRest: state.lapTimer.trackRest,
-      guard: state.lapTimer.guard,
-      ghostHand: state.display.ghostHand,
-      thickerHands: state.display.thickerHands,
-      currentMode: state.currentMode,
-      intervalTimer: {
-        countdown: state.intervalTimer.countdown,
-        workTime: state.intervalTimer.workTime,
-        restTime: state.intervalTimer.restTime,
-        totalRounds: state.intervalTimer.totalRounds,
-        beepEnabled: state.intervalTimer.beepEnabled,
-        volume: state.intervalTimer.volume
-      }
-    };
-    localStorage.setItem('clockSettings', JSON.stringify(settings));
-  } catch (err) {
-    console.error('Error saving settings:', err);
-  }
-}
-
-function formatDateForFilename(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}_${hours}-${minutes}`;
-}
-
-function formatDateForXML(date) {
-  return date.toISOString();
-}
-
-function exportWorkout(sessionName = null) {
-  if (state.lapTimer.laps.length === 0) {
-    alert('No workout data to export');
-    return;
+    calculate();
   }
 
-  const sessionStart = new Date(state.lapTimer.sessionStart);
-  const sessionEnd = new Date();
-  
-  // Default session name if not provided
-  if (!sessionName) {
-    sessionName = formatDateForFilename(sessionStart);
-  }
-
-  // Build XML spreadsheet (SpreadsheetML format)
-  let xml = '<?xml version="1.0"?>\n';
-  xml += '<?mso-application progid="Excel.Sheet"?>\n';
-  xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
-  xml += ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
-  xml += ' <Worksheet ss:Name="Workout">\n';
-  xml += '  <Table>\n';
-  
-  // Header row
-  xml += '   <Row>\n';
-  xml += '    <Cell><Data ss:Type="String">Session Name</Data></Cell>\n';
-  xml += `    <Cell><Data ss:Type="String">${escapeXml(sessionName)}</Data></Cell>\n`;
-  xml += '   </Row>\n';
-  
-  xml += '   <Row>\n';
-  xml += '    <Cell><Data ss:Type="String">Session Start</Data></Cell>\n';
-  xml += `    <Cell><Data ss:Type="String">${formatDateForXML(sessionStart)}</Data></Cell>\n`;
-  xml += '   </Row>\n';
-  
-  xml += '   <Row>\n';
-  xml += '    <Cell><Data ss:Type="String">Session End</Data></Cell>\n';
-  xml += `    <Cell><Data ss:Type="String">${formatDateForXML(sessionEnd)}</Data></Cell>\n`;
-  xml += '   </Row>\n';
-  
-  xml += '   <Row>\n';
-  xml += '    <Cell><Data ss:Type="String">Total Duration</Data></Cell>\n';
-  xml += `    <Cell><Data ss:Type="String">${fmt(sessionEnd - sessionStart)}</Data></Cell>\n`;
-  xml += '   </Row>\n';
-  
-  // Empty row
-  xml += '   <Row/>\n';
-  
-  // Column headers
-  xml += '   <Row>\n';
-  xml += '    <Cell><Data ss:Type="String">Number</Data></Cell>\n';
-  xml += '    <Cell><Data ss:Type="String">Type</Data></Cell>\n';
-  xml += '    <Cell><Data ss:Type="String">Duration</Data></Cell>\n';
-  xml += '    <Cell><Data ss:Type="String">Milliseconds</Data></Cell>\n';
-  xml += '   </Row>\n';
-  
-  // Data rows
-  state.lapTimer.laps.forEach((lap, i) => {
-    xml += '   <Row>\n';
-    xml += `    <Cell><Data ss:Type="Number">${lap.number || i + 1}</Data></Cell>\n`;
-    xml += `    <Cell><Data ss:Type="String">${lap.type}</Data></Cell>\n`;
-    xml += `    <Cell><Data ss:Type="String">${fmt(lap.time)}</Data></Cell>\n`;
-    xml += `    <Cell><Data ss:Type="Number">${lap.time}</Data></Cell>\n`;
-    xml += '   </Row>\n';
+  savePresetBtn.addEventListener('click', function() {
+    const bohVal = parseFloat(bohPercent.value) || 0;
+    const fohVal = parseFloat(fohPercent.value) || 0;
+    
+    if (bohVal >= 0 && fohVal >= 0) {
+      localStorage.setItem('tipCalcPreset', JSON.stringify({
+        boh: bohVal,
+        foh: fohVal
+      }));
+      savePresetBtn.textContent = '✓';
+      savePresetBtn.classList.add('saved');
+      setTimeout(function() {
+        savePresetBtn.textContent = '💾';
+        savePresetBtn.classList.remove('saved');
+      }, 1500);
+    }
   });
+
+  clearBtn.addEventListener('click', function() {
+    owed.value = '';
+    sales.value = '';
+    bohPercent.value = '';
+    fohPercent.value = '';
+    loadPreset();
+  });
+
+  const saveToEndOfDayBtn = document.getElementById('saveToEndOfDay');
+  saveToEndOfDayBtn.addEventListener('click', function() {
+    if (currentTipValue > 0) {
+      const saved = localStorage.getItem('endOfDayData');
+      let data = {
+        totalHours: 0,
+        totalTips: 0,
+        hoursEntries: [],
+        tipsEntries: []
+      };
+      
+      if (saved) {
+        data = JSON.parse(saved);
+      }
+      
+      const roundedTip = Math.round(currentTipValue * 100) / 100;
+      data.tipsEntries.push(roundedTip);
+      data.totalTips += roundedTip;
+      
+      localStorage.setItem('endOfDayData', JSON.stringify(data));
+      
+      saveToEndOfDayBtn.textContent = '✓ Sent to End of Day!';
+      saveToEndOfDayBtn.style.backgroundColor = '#51cf66';
+      setTimeout(function() {
+        saveToEndOfDayBtn.textContent = '→ Send to End of Day';
+        saveToEndOfDayBtn.style.backgroundColor = 'var(--accent)';
+      }, 2000);
+    } else {
+      saveToEndOfDayBtn.textContent = '⚠️ Calculate tips first';
+      setTimeout(function() {
+        saveToEndOfDayBtn.textContent = '→ Send to End of Day';
+      }, 2000);
+    }
+  });
+
+  const pigs = ["🐽", "🐖", "🐷"];
+  const money = ["💸", "💰", "💵"];
+  pigDisplay.textContent = pigs[Math.floor(Math.random() * pigs.length)] + 
+                          money[Math.floor(Math.random() * money.length)];
+
+  [owed, sales, bohPercent, fohPercent, largeParty, cash].forEach(function(el) {
+    el.addEventListener("input", calculate);
+  });
+
+  loadPreset();
+}
+
+// ============================================
+// HOURS CALCULATOR
+// ============================================
+
+function getHoursCalcHTML() {
+  return `
+<style>
+  .hours-app {
+    width: 100%;
+    max-width: 420px;
+    margin: 2rem auto;
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
   
-  xml += '  </Table>\n';
-  xml += ' </Worksheet>\n';
-  xml += '</Workbook>';
+  /* Primary inputs - emphasized */
+  .hours-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .hours-field label {
+    font-size: 0.9rem;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  
+  .hours-field input {
+    width: 100%;
+    background-color: #0c0e13;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem;
+    font-size: 1rem;
+    color: var(--text);
+  }
+  
+  .hours-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  
+  /* Primary time inputs - emphasized */
+  .hours-field.primary input {
+    border: 2px solid var(--border);
+    padding: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  
+  .hours-field.primary input:focus {
+    border-color: var(--accent);
+  }
+  
+  /* De-emphasized break input */
+  .hours-field.secondary {
+    opacity: 0.7;
+  }
+  
+  .hours-field.secondary label {
+    font-size: 0.8rem;
+  }
+  
+  .hours-field.secondary input {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  /* De-emphasized outputs */
+  .hours-output {
+    background-color: #0c0e13;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem;
+  }
+  
+  .hours-output strong {
+    font-size: 1.05rem;
+  }
+  
+  .hours-field.deemphasized {
+    opacity: 0.5;
+  }
+  
+  .hours-field.deemphasized label {
+    font-size: 0.75rem;
+  }
+  
+  .hours-field.deemphasized .hours-output {
+    padding: 0.4rem;
+  }
+  
+  .hours-field.deemphasized .hours-output strong {
+    font-size: 0.9rem;
+  }
+  
+  /* Emphasized rounded time output */
+  .hours-field.emphasized {
+    margin-top: 0.5rem;
+  }
+  
+  .hours-field.emphasized label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .hours-field.emphasized .hours-output {
+    background-color: #0c0e13;
+    border: 2px solid var(--accent);
+    padding: 1rem;
+    text-align: center;
+  }
+  
+  .hours-field.emphasized .hours-output strong {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  
+  .hours-bounce {
+    margin-top: 15px;
+    font-size: 2em;
+    animation: bounce 1.5s ease-in-out infinite;
+    text-align: center;
+  }
+  
+  .hours-save-btn {
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+  }
+  
+  .hours-save-btn:hover {
+    background-color: #3d8fe6;
+  }
+  
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+</style>
 
-  // Create and download file
-  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${sessionName}.xml`;
-  a.click();
-  URL.revokeObjectURL(url);
+<div class="hours-app">
+  <div class="hours-field primary">
+    <label>Start Time</label>
+    <input id="start" type="time" />
+  </div>
+
+  <div class="hours-field primary">
+    <label>End Time</label>
+    <input id="end" type="time" />
+  </div>
+
+  <div class="hours-field secondary">
+    <label>Break Time (minutes)</label>
+    <input id="breakTime" type="number" min="0" step="1" placeholder="0" value="0" />
+  </div>
+
+  <div class="hours-field deemphasized">
+    <label>Exact Time Elapsed</label>
+    <div class="hours-output">
+      <strong id="exactTime">0h 0m</strong>
+    </div>
+  </div>
+
+  <div class="hours-field deemphasized">
+    <label>Time After Break</label>
+    <div class="hours-output">
+      <strong id="afterBreak">0h 0m</strong>
+    </div>
+  </div>
+
+  <div class="hours-field emphasized">
+    <label>Rounded Time</label>
+    <div class="hours-output">
+      <strong id="roundedTime">0.00h</strong>
+    </div>
+  </div>
+
+  <button class="hours-save-btn" id="saveHoursToEndOfDay">
+    → Send to End of Day
+  </button>
+
+  <div class="hours-bounce" id="emojiDisplay"></div>
+</div>`;
 }
 
-function escapeXml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+function initHoursCalc() {
+  const pigEmojis = ["🐽", "🐖", "🐷"];
+  const clockEmojis = ["⏰", "🕐", "⏳"];
+  document.getElementById('emojiDisplay').textContent = 
+    pigEmojis[Math.floor(Math.random() * pigEmojis.length)] +
+    clockEmojis[Math.floor(Math.random() * clockEmojis.length)];
+
+  const startInput = document.getElementById('start');
+  const endInput = document.getElementById('end');
+  const breakInput = document.getElementById('breakTime');
+  const exactDiv = document.getElementById('exactTime');
+  const afterBreakDiv = document.getElementById('afterBreak');
+  const roundedDiv = document.getElementById('roundedTime');
+  
+  let currentRoundedHours = 0;
+
+  function updateHours() {
+    const startVal = startInput.value;
+    const endVal = endInput.value;
+    const breakMin = parseInt(breakInput.value) || 0;
+
+    if (!startVal || !endVal) {
+      exactDiv.textContent = "0h 0m";
+      afterBreakDiv.textContent = "0h 0m";
+      roundedDiv.textContent = "0.00h";
+      currentRoundedHours = 0;
+      return;
+    }
+
+    const startParts = startVal.split(':').map(Number);
+    const endParts = endVal.split(':').map(Number);
+    const startH = startParts[0];
+    const startM = startParts[1];
+    const endH = endParts[0];
+    const endM = endParts[1];
+
+    var start = new Date();
+    start.setHours(startH, startM, 0, 0);
+
+    var end = new Date();
+    end.setHours(endH, endM, 0, 0);
+
+    if (end < start) {
+      end.setDate(end.getDate() + 1);
+    }
+
+    const diffMs = end - start;
+    const totalMin = Math.floor(diffMs / 1000 / 60);
+    const diffHrs = Math.floor(totalMin / 60);
+    const diffMin = totalMin % 60;
+
+    exactDiv.textContent = diffHrs + "h " + diffMin + "m";
+
+    const workMin = Math.max(0, totalMin - breakMin);
+    const workHrs = Math.floor(workMin / 60);
+    const workMins = workMin % 60;
+
+    afterBreakDiv.textContent = workHrs + "h " + workMins + "m";
+
+    var decimalHours = workMin / 60;
+    const roundedHours = Math.floor(decimalHours * 4) / 4;
+    
+    currentRoundedHours = roundedHours;
+    roundedDiv.textContent = roundedHours.toFixed(2) + "h";
+  }
+
+  startInput.addEventListener('change', updateHours);
+  endInput.addEventListener('change', updateHours);
+  breakInput.addEventListener('input', updateHours);
+
+  const saveHoursBtn = document.getElementById('saveHoursToEndOfDay');
+  saveHoursBtn.addEventListener('click', function() {
+    if (currentRoundedHours > 0) {
+      const saved = localStorage.getItem('endOfDayData');
+      let data = {
+        totalHours: 0,
+        totalTips: 0,
+        hoursEntries: [],
+        tipsEntries: []
+      };
+      
+      if (saved) {
+        data = JSON.parse(saved);
+      }
+      
+      data.hoursEntries.push(currentRoundedHours);
+      data.totalHours += currentRoundedHours;
+      
+      localStorage.setItem('endOfDayData', JSON.stringify(data));
+      
+      saveHoursBtn.textContent = '✓ Sent to End of Day!';
+      saveHoursBtn.style.backgroundColor = '#51cf66';
+      setTimeout(function() {
+        saveHoursBtn.textContent = '→ Send to End of Day';
+        saveHoursBtn.style.backgroundColor = 'var(--accent)';
+      }, 2000);
+    } else {
+      saveHoursBtn.textContent = '⚠️ Calculate hours first';
+      setTimeout(function() {
+        saveHoursBtn.textContent = '→ Send to End of Day';
+      }, 2000);
+    }
+  });
+
+  updateHours();
 }
 
-// ============================================================================
-// WAKE LOCK MANAGEMENT
-// ============================================================================
+// ============================================
+// END OF DAY CALCULATOR
+// ============================================
 
-let wakeLock = null;
+function getEndOfDayHTML() {
+  return `
+<style>
+  .eod-app {
+    width: 100%;
+    max-width: 420px;
+    margin: 1rem auto;
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .eod-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  
+  .eod-field label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  
+  .eod-input-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .eod-field input {
+    flex: 1;
+    background-color: #0c0e13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.65rem;
+    font-size: 1.1rem;
+    color: var(--text);
+    font-weight: 600;
+  }
+  
+  .eod-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  
+  .eod-add-btn {
+    background-color: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: 0.65rem 1rem;
+    color: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  
+  .eod-add-btn:hover {
+    background-color: #3d8fe6;
+  }
+  
+  .eod-summary {
+    background-color: #0c0e13;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+  }
+  
+  .eod-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0.4rem 0;
+  }
+  
+  .eod-summary-label {
+    font-size: 0.9rem;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  
+  .eod-summary-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  
+  .eod-hourly {
+    font-size: 1.8rem !important;
+    color: var(--accent) !important;
+    font-weight: 700 !important;
+  }
+  
+  .eod-section {
+    margin-top: 0.5rem;
+  }
+  
+  .eod-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .eod-section-title {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .eod-count {
+    font-size: 0.75rem;
+    color: var(--muted);
+    background-color: #0c0e13;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+  }
+  
+  .eod-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  
+  .eod-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #0c0e13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.6rem;
+    transition: border-color 0.2s;
+  }
+  
+  .eod-list-item:hover {
+    border-color: var(--accent);
+  }
+  
+  .eod-item-label {
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  
+  .eod-item-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-right: 0.5rem;
+  }
+  
+  .eod-item-actions {
+    display: flex;
+    gap: 0.3rem;
+  }
+  
+  .eod-item-btn {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  
+  .eod-item-btn:hover {
+    border-color: var(--accent);
+    background-color: rgba(77, 163, 255, 0.1);
+  }
+  
+  .eod-item-btn.delete:hover {
+    border-color: var(--warning);
+    color: var(--warning);
+    background-color: rgba(255, 107, 107, 0.1);
+  }
+  
+  .eod-empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    padding: 1rem;
+    background-color: #0c0e13;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+  }
+  
+  .eod-reset-btn {
+    background-color: #0c0e13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.65rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-top: 0.5rem;
+  }
+  
+  .eod-reset-btn:hover {
+    border-color: var(--warning);
+    color: var(--warning);
+    background-color: rgba(255, 107, 107, 0.1);
+  }
+  
+  .eod-undo-btn {
+    background-color: #0c0e13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.65rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  
+  .eod-undo-btn:hover {
+    border-color: var(--accent);
+    background-color: rgba(77, 163, 255, 0.2);
+  }
+  
+  .eod-pig {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 1.4rem;
+    animation: bounce 2s ease-in-out infinite;
+  }
+  
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  
+  @media (max-width: 400px) {
+    .eod-app {
+      padding: 0.75rem;
+      gap: 0.6rem;
+      margin: 0.5rem auto;
+    }
+    
+    .eod-field input {
+      padding: 0.55rem;
+      font-size: 1rem;
+    }
+    
+    .eod-add-btn {
+      padding: 0.55rem 0.8rem;
+      font-size: 0.85rem;
+    }
+    
+    .eod-hourly {
+      font-size: 1.5rem !important;
+    }
+  }
+</style>
 
-async function requestWakeLock() {
-  try {
-    if ('wakeLock' in navigator) {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => {
-        console.log('Wake Lock released');
+<div class="eod-app">
+  <div class="eod-field">
+    <label>Add Hours Worked</label>
+    <div class="eod-input-group">
+      <input type="number" id="hoursInput" placeholder="0.00" step="0.01" inputmode="decimal" />
+      <button class="eod-add-btn" id="addHoursBtn">Add</button>
+    </div>
+  </div>
+  
+  <div class="eod-field">
+    <label>Add Tips Earned</label>
+    <div class="eod-input-group">
+      <input type="number" id="tipsInput" placeholder="0.00" step="0.01" inputmode="decimal" />
+      <button class="eod-add-btn" id="addTipsBtn">Add</button>
+    </div>
+  </div>
+  
+  <div class="eod-summary">
+    <div class="eod-summary-row">
+      <span class="eod-summary-label">Total Hours</span>
+      <span class="eod-summary-value" id="totalHours">0.00</span>
+    </div>
+    <div class="eod-summary-row">
+      <span class="eod-summary-label">Total Tips</span>
+      <span class="eod-summary-value" id="totalTips">$0.00</span>
+    </div>
+    <div class="eod-summary-row" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+      <span class="eod-summary-label">Hourly Rate</span>
+      <span class="eod-summary-value eod-hourly" id="hourlyRate">$0.00</span>
+    </div>
+  </div>
+  
+  <div class="eod-section">
+    <div class="eod-section-header">
+      <span class="eod-section-title">Hours Entries</span>
+      <span class="eod-count" id="hoursCount">0 entries</span>
+    </div>
+    <div class="eod-list" id="hoursList">
+      <div class="eod-empty">No hours added yet</div>
+    </div>
+  </div>
+  
+  <div class="eod-section">
+    <div class="eod-section-header">
+      <span class="eod-section-title">Tips Entries</span>
+      <span class="eod-count" id="tipsCount">0 entries</span>
+    </div>
+    <div class="eod-list" id="tipsList">
+      <div class="eod-empty">No tips added yet</div>
+    </div>
+  </div>
+  
+  <button class="eod-reset-btn" id="resetBtn">Clear All Data</button>
+  
+  <button class="eod-undo-btn" id="undoBtn" style="display: none; margin-top: 0.5rem; background-color: rgba(77, 163, 255, 0.1); border-color: var(--accent); color: var(--accent);">
+    ↶ Undo Last Delete
+  </button>
+  
+  <div class="eod-pig" id="pigDisplay"></div>
+</div>`;
+}
+
+function initEndOfDay() {
+  const pigEmojis = ["🐽", "🐖", "🐷"];
+  const customEmojis = ["🍹", "🍺", "🍸"];
+  document.getElementById('pigDisplay').textContent = 
+    pigEmojis[Math.floor(Math.random() * pigEmojis.length)] +
+    customEmojis[Math.floor(Math.random() * customEmojis.length)];
+
+  var totalHours = 0;
+  var totalTips = 0;
+  var hoursEntries = [];
+  var tipsEntries = [];
+  
+  var lastDeletedItem = null;
+
+  function loadData() {
+    const saved = localStorage.getItem('endOfDayData');
+    if (saved) {
+      const data = JSON.parse(saved);
+      totalHours = data.totalHours || 0;
+      totalTips = data.totalTips || 0;
+      hoursEntries = data.hoursEntries || [];
+      tipsEntries = data.tipsEntries || [];
+      updateDisplay();
+    }
+  }
+
+  function saveData() {
+    const data = {
+      totalHours: totalHours,
+      totalTips: totalTips,
+      hoursEntries: hoursEntries,
+      tipsEntries: tipsEntries
+    };
+    localStorage.setItem('endOfDayData', JSON.stringify(data));
+  }
+
+  function updateDisplay() {
+    document.getElementById('totalHours').textContent = totalHours.toFixed(2);
+    document.getElementById('totalTips').textContent = "$" + totalTips.toFixed(2);
+    
+    const hourlyRate = totalHours > 0 ? totalTips / totalHours : 0;
+    document.getElementById('hourlyRate').textContent = "$" + hourlyRate.toFixed(2);
+    
+    document.getElementById('hoursCount').textContent = 
+      hoursEntries.length + " " + (hoursEntries.length === 1 ? 'entry' : 'entries');
+    document.getElementById('tipsCount').textContent = 
+      tipsEntries.length + " " + (tipsEntries.length === 1 ? 'entry' : 'entries');
+    
+    renderHoursList();
+    renderTipsList();
+    
+    const undoBtn = document.getElementById('undoBtn');
+    if (lastDeletedItem) {
+      undoBtn.style.display = 'block';
+    } else {
+      undoBtn.style.display = 'none';
+    }
+  }
+
+  function renderHoursList() {
+    const listEl = document.getElementById('hoursList');
+    if (hoursEntries.length === 0) {
+      listEl.innerHTML = '<div class="eod-empty">No hours added yet</div>';
+      return;
+    }
+    
+    var html = '';
+    for (var i = 0; i < hoursEntries.length; i++) {
+      html += '<div class="eod-list-item">';
+      html += '<div>';
+      html += '<span class="eod-item-label">Entry ' + (i + 1) + '</span> ';
+      html += '<span class="eod-item-value">' + hoursEntries[i].toFixed(2) + 'h</span>';
+      html += '</div>';
+      html += '<div class="eod-item-actions">';
+      html += '<button class="eod-item-btn" data-index="' + i + '" data-type="hours-edit">Edit</button>';
+      html += '<button class="eod-item-btn delete" data-index="' + i + '" data-type="hours-delete">×</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+    listEl.innerHTML = html;
+    
+    listEl.querySelectorAll('[data-type="hours-edit"]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        editHoursEntry(parseInt(this.getAttribute('data-index')));
       });
-    }
-  } catch (err) {
-    console.error('Error requesting wake lock:', err);
-  }
-}
-
-function releaseWakeLock() {
-  if (wakeLock) {
-    wakeLock.release().then(() => {
-      wakeLock = null;
-    }).catch(err => console.error('Error releasing wake lock:', err));
-  }
-}
-
-// ============================================================================
-// FORMATTING UTILITIES
-// ============================================================================
-
-function fmt(ms) {
-  const t = Math.floor(ms / 100);
-  return `${String(Math.floor(t / 600)).padStart(2, '0')}:${String(Math.floor(t / 10) % 60).padStart(2, '0')}.${t % 10}`;
-}
-
-// ============================================================================
-// CLOCK RENDERING
-// ============================================================================
-
-let drawCount = 0;
-
-function drawClock() {
-  if (!canvas) {
-    if (drawCount === 0) {
-      console.error('drawClock: Canvas not found!');
-    }
-    return;
-  }
-  
-  try {
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 360, 360);
-    const cx = 180, cy = 180, r = 162;
-    
-    drawCount++;
-    if (drawCount === 1) {
-      console.log('drawClock: First draw successful');
-    }
-
-  // Background
-  ctx.fillStyle = state.display.dark ? '#0b0f14' : '#f2f2f2';
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Border
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = state.display.dark ? '#444' : '#111';
-  ctx.stroke();
-
-  // Tick marks
-  for (let i = 0; i < 60; i++) {
-    const a = i * Math.PI / 30 - Math.PI / 2;
-    const isMajor = i % 5 === 0;
-    ctx.lineWidth = isMajor ? 3 : 1;
-    ctx.strokeStyle = state.display.dark ? '#555' : '#111';
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    ctx.lineTo(cx + Math.cos(a) * (r - (isMajor ? 28 : 14)), cy + Math.sin(a) * (r - (isMajor ? 28 : 14)));
-    ctx.stroke();
-  }
-
-  // Numbers
-  ctx.fillStyle = state.display.dark ? '#9aa4b2' : '#000';
-  ctx.font = 'bold 28px system-ui';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (let n = 5; n <= 60; n += 5) {
-    const a = n * Math.PI / 30 - Math.PI / 2;
-    ctx.fillText(n, cx + Math.cos(a) * (r - 52), cy + Math.sin(a) * (r - 52));
-  }
-
-  // Clock hands - behavior depends on mode
-  const base = (Date.now() / 1000) % 60;
-  const length = r - 28;
-  const baseWidth = state.display.thickerHands ? 6 : 3;
-
-  if (state.currentMode === 'lapTimer') {
-    // Lap timer: show all 4 hands
-    state.lapTimer.hands.forEach(h => {
-      const s = (base + h.offset) % 60;
-      const a = s * Math.PI / 30 - Math.PI / 2;
-
-      // Outline
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = baseWidth + 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
-      ctx.stroke();
-
-      // Colored hand
-      ctx.strokeStyle = h.color;
-      ctx.lineWidth = baseWidth;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
-      ctx.stroke();
     });
-
-    // Lap timer ghost hand
-    if (state.lapTimer.ghost && state.display.ghostHand) {
-      const a = state.lapTimer.ghost.seconds * Math.PI / 30 - Math.PI / 2;
-      ctx.globalAlpha = 0.5;
-      ctx.strokeStyle = state.lapTimer.ghost.color;
-      ctx.lineWidth = 6;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-  } else if (state.currentMode === 'intervalTimer') {
-    // Interval timer: show all 4 hands continuously
-    state.lapTimer.hands.forEach(h => {
-      const s = (base + h.offset) % 60;
-      const a = s * Math.PI / 30 - Math.PI / 2;
-
-      // Outline
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = baseWidth + 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
-      ctx.stroke();
-
-      // Colored hand
-      ctx.strokeStyle = h.color;
-      ctx.lineWidth = baseWidth;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
-      ctx.stroke();
-    });
-
-    // Interval timer: red hand as ghost showing last start/stop
-    if (state.display.ghostHand && state.intervalTimer.ghostSeconds !== null) {
-      const a = state.intervalTimer.ghostSeconds * Math.PI / 30 - Math.PI / 2;
-      ctx.globalAlpha = 0.5;
-      ctx.strokeStyle = '#ff4d4d'; // Always red for interval ghost
-      ctx.lineWidth = 8;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  // Center dot
-  ctx.fillStyle = state.display.dark ? '#777' : '#000';
-  ctx.beginPath();
-  ctx.arc(cx, cy, 8, 0, Math.PI * 2);
-  ctx.fill();
-  
-  } catch (err) {
-    if (drawCount === 0) {
-      console.error('drawClock error:', err);
-    }
-  }
-}
-
-// ============================================================================
-// GHOST HAND CALCULATION
-// ============================================================================
-
-function calculateGhostHand(now) {
-  const base = (now / 1000) % 60;
-  let best = null;
-  let minDistance = Infinity;
-
-  // Find hand closest to top (0/60 seconds)
-  state.lapTimer.hands.forEach(h => {
-    const s = (base + h.offset) % 60;
     
-    // Check if in top window (45-60 or 0-2)
-    if ((s >= 45 && s <= 60) || (s >= 0 && s <= 2)) {
-      const distance = s <= 2 ? s : 60 - s;
-      if (distance < minDistance) {
-        minDistance = distance;
-        best = { seconds: s, color: h.color };
-      }
+    listEl.querySelectorAll('[data-type="hours-delete"]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        deleteHoursEntry(parseInt(this.getAttribute('data-index')));
+      });
+    });
+  }
+
+  function renderTipsList() {
+    const listEl = document.getElementById('tipsList');
+    if (tipsEntries.length === 0) {
+      listEl.innerHTML = '<div class="eod-empty">No tips added yet</div>';
+      return;
+    }
+    
+    var html = '';
+    for (var i = 0; i < tipsEntries.length; i++) {
+      html += '<div class="eod-list-item">';
+      html += '<div>';
+      html += '<span class="eod-item-label">Entry ' + (i + 1) + '</span> ';
+      html += '<span class="eod-item-value">$' + tipsEntries[i].toFixed(2) + '</span>';
+      html += '</div>';
+      html += '<div class="eod-item-actions">';
+      html += '<button class="eod-item-btn" data-index="' + i + '" data-type="tips-edit">Edit</button>';
+      html += '<button class="eod-item-btn delete" data-index="' + i + '" data-type="tips-delete">×</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+    listEl.innerHTML = html;
+    
+    listEl.querySelectorAll('[data-type="tips-edit"]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        editTipsEntry(parseInt(this.getAttribute('data-index')));
+      });
+    });
+    
+    listEl.querySelectorAll('[data-type="tips-delete"]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        deleteTipsEntry(parseInt(this.getAttribute('data-index')));
+      });
+    });
+  }
+
+  document.getElementById('addHoursBtn').addEventListener('click', function() {
+    const input = document.getElementById('hoursInput');
+    const value = parseFloat(input.value);
+    
+    if (input.value && !isNaN(value) && value > 0) {
+      hoursEntries.push(value);
+      totalHours += value;
+      input.value = '';
+      lastDeletedItem = null;
+      saveData();
+      updateDisplay();
+      
+      setTimeout(function() {
+        input.focus();
+      }, 50);
     }
   });
 
-  // Fallback: snap nearest hand to top
-  if (!best) {
-    let closest = state.lapTimer.hands[0];
-    let closestDist = Math.min(
-      (base + closest.offset) % 60,
-      60 - ((base + closest.offset) % 60)
-    );
-
-    state.lapTimer.hands.forEach(h => {
-      const s = (base + h.offset) % 60;
-      const d = Math.min(s, 60 - s);
-      if (d < closestDist) {
-        closest = h;
-        closestDist = d;
-      }
-    });
-
-    best = { seconds: 0, color: closest.color };
-  }
-
-  return best;
-}
-
-// ============================================================================
-// TIMER MANAGEMENT
-// ============================================================================
-
-const MIN_PRESS = 1000;
-const RESET_HOLD_TIME = 1500; // 1.5 seconds - fast enough for intentional, slow enough to prevent accidents
-let digitalTimerInterval = null;
-
-function startDigitalTimer() {
-  if (digitalTimerInterval) return;
-  
-  digitalTimerInterval = setInterval(() => {
-    if (state.currentMode === 'lapTimer') {
-      if (state.lapTimer.lastTap && !state.lapTimer.isFinished) {
-        const now = Date.now();
-        digital.textContent = fmt(now - state.lapTimer.lastTap);
-        if (state.lapTimer.sessionStart) {
-          totalClock.textContent = fmt(now - state.lapTimer.sessionStart);
-        }
-      }
+  document.getElementById('addTipsBtn').addEventListener('click', function() {
+    const input = document.getElementById('tipsInput');
+    const value = parseFloat(input.value);
+    
+    if (input.value && !isNaN(value) && value >= 0) {
+      const rounded = Math.round(value * 100) / 100;
+      tipsEntries.push(rounded);
+      totalTips += rounded;
+      input.value = '';
+      lastDeletedItem = null;
+      saveData();
+      updateDisplay();
+      
+      setTimeout(function() {
+        input.focus();
+      }, 50);
     }
-    // Interval timer has its own update function
-  }, 100);
-}
+  });
 
-function stopDigitalTimer() {
-  if (digitalTimerInterval) {
-    clearInterval(digitalTimerInterval);
-    digitalTimerInterval = null;
-  }
-}
+  document.getElementById('hoursInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      document.getElementById('addHoursBtn').click();
+    }
+  });
 
-// ============================================================================
-// LAP MANAGEMENT
-// ============================================================================
+  document.getElementById('tipsInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      document.getElementById('addTipsBtn').click();
+    }
+  });
 
-function addRow(lap) {
-  if (lap.type === 'rest' && !state.lapTimer.trackRest) return;
-
-  let delta = '', cls = '';
-  
-  if (lap.type === 'lap') {
-    const lapsOnly = state.lapTimer.laps.filter(x => x.type === 'lap');
-    if (lapsOnly.length > 1) {
-      const prev = lapsOnly[lapsOnly.length - 2].time;
-      const diff = lap.time - prev;
-      delta = (diff < 0 ? '-' : '+') + fmt(Math.abs(diff));
-      cls = diff < 0 ? 'fast' : 'slow';
+  function editHoursEntry(index) {
+    const currentValue = hoursEntries[index];
+    const newValue = prompt("Edit hours (Entry " + (index + 1) + "):", currentValue);
+    
+    if (newValue !== null && !isNaN(newValue) && parseFloat(newValue) > 0) {
+      totalHours = totalHours - currentValue + parseFloat(newValue);
+      hoursEntries[index] = parseFloat(newValue);
+      saveData();
+      updateDisplay();
     }
   }
 
-  const row = document.createElement('div');
-  row.className = 'row' + (lap.type === 'rest' ? ' rest' : '');
-  row.innerHTML = `
-    <span>${lap.type === 'lap' ? `Lap ${lap.number}` : 'Rest'}</span>
-    <span>
-      ${delta ? `<span class="delta ${cls}">${delta}</span>` : ''}
-      ${fmt(lap.time)}
-    </span>`;
-  list.prepend(row);
-}
-
-function handleTap() {
-  if (state.currentMode === 'lapTimer') {
-    handleLapTimerTap();
-  } else if (state.currentMode === 'intervalTimer') {
-    handleIntervalTimerTap();
-  }
-}
-
-function handleLapTimerTap() {
-  if (state.lapTimer.isFinished) return;
-
-  const now = Date.now();
-  
-  // Initialize session
-  if (!state.lapTimer.sessionStart) {
-    state.lapTimer.sessionStart = now;
-  }
-
-  // Guard against accidental double-tap
-  if (state.lapTimer.guard && state.lapTimer.lastTap && now - state.lapTimer.lastTap < MIN_PRESS) {
-    return;
-  }
-
-  // Record lap
-  if (state.lapTimer.lastTap) {
-    const duration = now - state.lapTimer.lastTap;
-    const lap = { 
-      type: state.lapTimer.mode, 
-      time: duration,
-      number: state.lapTimer.mode === 'lap' ? state.lapTimer.lapCount++ : undefined
+  function deleteHoursEntry(index) {
+    lastDeletedItem = {
+      type: 'hours',
+      index: index,
+      value: hoursEntries[index]
     };
     
-    state.lapTimer.laps.push(lap);
+    totalHours -= hoursEntries[index];
+    hoursEntries.splice(index, 1);
+    saveData();
+    updateDisplay();
+  }
+
+  function editTipsEntry(index) {
+    const currentValue = tipsEntries[index];
+    const newValue = prompt("Edit tips (Entry " + (index + 1) + "):", currentValue.toFixed(2));
     
-    if (state.lapTimer.mode === 'lap') {
-      state.lapTimer.hasCompletedLap = true;
-    }
-    
-    addRow(lap);
-
-    // Calculate split
-    if (state.lapTimer.laps.length > 1) {
-      const lastLap = state.lapTimer.laps[state.lapTimer.laps.length - 1];
-      const prevLap = state.lapTimer.laps[state.lapTimer.laps.length - 2];
-      state.lapTimer.lastSplit = lastLap.time - prevLap.time;
-    }
-  }
-
-  state.lapTimer.lastTap = now;
-
-  // Toggle mode
-  if (state.lapTimer.trackRest && state.lapTimer.mode === 'lap') {
-    state.lapTimer.mode = 'rest';
-  } else if (state.lapTimer.mode === 'rest') {
-    state.lapTimer.mode = 'lap';
-  }
-
-  digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
-
-  // Update ghost hand
-  state.lapTimer.ghost = calculateGhostHand(now);
-
-  // Start timer
-  if (!state.lapTimer.digitalTimerRunning) {
-    startDigitalTimer();
-    state.lapTimer.digitalTimerRunning = true;
-  }
-}
-
-function handleIntervalTimerTap() {
-  const phase = state.intervalTimer.phase;
-  
-  if (phase === 'waiting') {
-    // Start the countdown
-    startIntervalTimer();
-  } else if (phase === 'countdown' || phase === 'work' || phase === 'rest') {
-    // Toggle pause
-    toggleIntervalPause();
-  }
-}
-
-// ============================================================================
-// UI ELEMENTS - Will be initialized after DOM loads
-// ============================================================================
-
-let canvas, digital, totalClock, list, toggleRestBtn, ghostToggle, thickerHandsToggle;
-let guardToggle, darkToggle, menuBtn, resetBtn, saveBtn, options, menu;
-let lapTimerControls, intervalTimerControls, intervalDisplay, intervalStatus, intervalRounds;
-let configIntervalsBtn, stopIntervalBtn, resetIntervalBtn, intervalConfigPanel;
-let countdownInput, workInput, restInput, roundsInput, infiniteRounds, beepEnabled;
-let volumeSlider, volumeValue, saveIntervalConfig, cancelIntervalConfig, menuOverlay;
-let summaryCountdown, summaryWork, summaryRest, summaryRounds;
-
-// ============================================================================
-// INITIALIZATION
-// ============================================================================
-
-function initializeDOM() {
-  // Get all DOM elements
-  canvas = document.getElementById('clock');
-  digital = document.getElementById('digital');
-  totalClock = document.getElementById('totalClock');
-  list = document.getElementById('list');
-  toggleRestBtn = document.getElementById('toggleRestBtn');
-  ghostToggle = document.getElementById('ghostToggle');
-  thickerHandsToggle = document.getElementById('thickerHandsToggle');
-  guardToggle = document.getElementById('guardToggle');
-  darkToggle = document.getElementById('darkToggle');
-  menuBtn = document.getElementById('menuBtn');
-  resetBtn = document.getElementById('resetBtn');
-  saveBtn = document.getElementById('saveBtn');
-  options = document.getElementById('options');
-  menu = document.getElementById('menu');
-  
-  // Lap timer elements
-  lapTimerControls = document.getElementById('lapTimerControls');
-  
-  // Interval timer elements
-  intervalTimerControls = document.getElementById('intervalTimerControls');
-  intervalDisplay = document.getElementById('intervalDisplay');
-  intervalStatus = document.getElementById('intervalStatus');
-  intervalRounds = document.getElementById('intervalRounds');
-  configIntervalsBtn = document.getElementById('configIntervalsBtn');
-  stopIntervalBtn = document.getElementById('stopIntervalBtn');
-  resetIntervalBtn = document.getElementById('resetIntervalBtn');
-  intervalConfigPanel = document.getElementById('intervalConfigPanel');
-  countdownInput = document.getElementById('countdownInput');
-  workInput = document.getElementById('workInput');
-  restInput = document.getElementById('restInput');
-  roundsInput = document.getElementById('roundsInput');
-  infiniteRounds = document.getElementById('infiniteRounds');
-  beepEnabled = document.getElementById('beepEnabled');
-  volumeSlider = document.getElementById('volumeSlider');
-  volumeValue = document.getElementById('volumeValue');
-  saveIntervalConfig = document.getElementById('saveIntervalConfig');
-  cancelIntervalConfig = document.getElementById('cancelIntervalConfig');
-  menuOverlay = document.getElementById('menuOverlay');
-  
-  // Summary displays
-  summaryCountdown = document.getElementById('summaryCountdown');
-  summaryWork = document.getElementById('summaryWork');
-  summaryRest = document.getElementById('summaryRest');
-  summaryRounds = document.getElementById('summaryRounds');
-  
-  console.log('DOM initialized. Canvas:', canvas);
-}
-
-function initializeUI() {
-  darkToggle.checked = state.display.dark;
-  toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ✓' : 'Rest ✗';
-  digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
-  ghostToggle.checked = state.display.ghostHand;
-  thickerHandsToggle.checked = state.display.thickerHands;
-  guardToggle.checked = state.lapTimer.guard;
-  
-  // Initialize interval config inputs
-  countdownInput.value = state.intervalTimer.countdown;
-  workInput.value = state.intervalTimer.workTime;
-  restInput.value = state.intervalTimer.restTime;
-  infiniteRounds.checked = state.intervalTimer.totalRounds === null;
-  roundsInput.value = state.intervalTimer.totalRounds || '';
-  roundsInput.disabled = infiniteRounds.checked;
-  beepEnabled.checked = state.intervalTimer.beepEnabled;
-  volumeSlider.value = state.intervalTimer.volume;
-  volumeValue.textContent = `${state.intervalTimer.volume}%`;
-  
-  // Set initial mode
-  updateModeUI();
-}
-
-function init() {
-  console.log('Initializing app...');
-  
-  initializeDOM();
-  
-  if (!canvas) {
-    console.error('CRITICAL: Canvas element not found!');
-    return;
-  }
-  
-  console.log('Canvas found:', canvas);
-  console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-  
-  loadSettings();
-  setupEventListeners();
-  initializeUI();
-  requestWakeLock();
-  
-  console.log('Starting render loop...');
-  let frameCount = 0;
-  
-  (function render() {
-    drawClock();
-    frameCount++;
-    if (frameCount === 1) {
-      console.log('First frame rendered');
-    }
-    requestAnimationFrame(render);
-  })();
-}
-
-// Wait for DOM to be ready
-if (document.readyState === 'loading') {
-  console.log('Waiting for DOM...');
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  console.log('DOM already loaded');
-  init();
-}
-
-// ============================================================================
-// MODE SWITCHING
-// ============================================================================
-
-function switchMode(newMode) {
-  if (state.currentMode === newMode) {
-    menu.classList.remove('open');
-    menuOverlay.classList.remove('visible');
-    return;
-  }
-  
-  // Check if there's an active session
-  const hasActiveSession = 
-    (state.currentMode === 'lapTimer' && state.lapTimer.sessionStart) ||
-    (state.currentMode === 'intervalTimer' && state.intervalTimer.sessionStart);
-  
-  if (hasActiveSession) {
-    if (!confirm('Switch modes? Current session will be reset.')) {
-      return;
+    if (newValue !== null && !isNaN(newValue) && parseFloat(newValue) >= 0) {
+      const rounded = Math.round(parseFloat(newValue) * 100) / 100;
+      totalTips = totalTips - currentValue + rounded;
+      tipsEntries[index] = rounded;
+      saveData();
+      updateDisplay();
     }
   }
-  
-  // Reset current mode
-  resetSession();
-  
-  // Switch mode
-  state.currentMode = newMode;
-  
-  // Update UI
-  updateModeUI();
-  
-  // Save preference
-  saveSettings();
-  
-  // Close menu
-  menu.classList.remove('open');
-  menuOverlay.classList.remove('visible');
-}
 
-function updateModeUI() {
-  // Update menu checkmarks
-  document.querySelectorAll('.mode-item').forEach(item => {
-    const mode = item.dataset.mode;
-    if (mode === state.currentMode) {
-      item.classList.add('active');
-      item.querySelector('.mode-check').textContent = '✓';
-    } else {
-      item.classList.remove('active');
-      item.querySelector('.mode-check').textContent = '';
-    }
-  });
-  
-  // Show/hide appropriate controls and displays
-  if (state.currentMode === 'lapTimer') {
-    lapTimerControls.classList.remove('hidden');
-    list.classList.remove('hidden');
-    intervalTimerControls.classList.add('hidden');
-    intervalDisplay.classList.add('hidden');
-    canvas.classList.remove('glow-green', 'glow-yellow');
-    digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
+  function deleteTipsEntry(index) {
+    lastDeletedItem = {
+      type: 'tips',
+      index: index,
+      value: tipsEntries[index]
+    };
     
-  } else if (state.currentMode === 'intervalTimer') {
-    lapTimerControls.classList.add('hidden');
-    list.classList.add('hidden');
-    intervalTimerControls.classList.remove('hidden');
-    intervalDisplay.classList.remove('hidden');
-    digital.classList.remove('rest');
-    updateIntervalSummary();
+    totalTips -= tipsEntries[index];
+    tipsEntries.splice(index, 1);
+    saveData();
+    updateDisplay();
   }
-}
-
-// ============================================================================
-// INTERVAL TIMER FUNCTIONS
-// ============================================================================
-
-let intervalTimerInterval = null;
-let audioContext = null;
-
-function beep(frequency = 800, duration = 150) {
-  if (!state.intervalTimer.beepEnabled) return;
   
-  try {
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  document.getElementById('undoBtn').addEventListener('click', function() {
+    if (!lastDeletedItem) return;
+    
+    if (lastDeletedItem.type === 'hours') {
+      hoursEntries.splice(lastDeletedItem.index, 0, lastDeletedItem.value);
+      totalHours += lastDeletedItem.value;
+    } else if (lastDeletedItem.type === 'tips') {
+      tipsEntries.splice(lastDeletedItem.index, 0, lastDeletedItem.value);
+      totalTips += lastDeletedItem.value;
     }
     
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
-    
-    const volume = state.intervalTimer.volume / 100;
-    gainNode.gain.setValueAtTime(volume * 0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-    
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + duration / 1000);
-  } catch (err) {
-    console.error('Beep error:', err);
-  }
-}
-
-function startIntervalTimer() {
-  const now = Date.now();
-  state.intervalTimer.sessionStart = now;
-  state.intervalTimer.intervalStart = now;
-  state.intervalTimer.phase = 'countdown';
-  state.intervalTimer.timeRemaining = state.intervalTimer.countdown * 1000;
-  state.intervalTimer.isPaused = false;
-  state.intervalTimer.currentRound = 1;
-  
-  // Set ghost hand to current position (red hand at top = 0)
-  state.intervalTimer.ghostSeconds = 0;
-  
-  canvas.classList.add('glow-green');
-  intervalStatus.textContent = 'GET READY';
-  
-  updateIntervalRounds();
-  
-  if (!intervalTimerInterval) {
-    intervalTimerInterval = setInterval(updateIntervalTimer, 50);
-  }
-}
-
-function updateIntervalTimer() {
-  if (state.intervalTimer.isPaused) return;
-  
-  const now = Date.now();
-  const elapsed = now - state.intervalTimer.intervalStart;
-  const remaining = state.intervalTimer.timeRemaining - elapsed;
-  
-  // Update display
-  digital.textContent = fmt(Math.max(0, remaining));
-  if (state.intervalTimer.sessionStart) {
-    totalClock.textContent = fmt(now - state.intervalTimer.sessionStart);
-  }
-  
-  // Check for warning beeps (3, 2, 1 seconds before transition)
-  const secondsRemaining = Math.ceil(remaining / 1000);
-  if (secondsRemaining === 3 || secondsRemaining === 2 || secondsRemaining === 1) {
-    const lastBeepKey = `${state.intervalTimer.phase}-${secondsRemaining}`;
-    if (state.intervalTimer.lastBeep !== lastBeepKey) {
-      beep(600, 100); // Warning beep
-      state.intervalTimer.lastBeep = lastBeepKey;
-    }
-  }
-  
-  // Check if phase complete
-  if (remaining <= 0) {
-    transitionIntervalPhase();
-  }
-}
-
-function transitionIntervalPhase() {
-  const now = Date.now();
-  
-  // Final beep for transition
-  beep(1000, 200);
-  
-  // Update ghost hand to current clock position
-  const currentSeconds = (now / 1000) % 60;
-  state.intervalTimer.ghostSeconds = currentSeconds;
-  
-  if (state.intervalTimer.phase === 'countdown') {
-    // Countdown -> Work
-    state.intervalTimer.phase = 'work';
-    state.intervalTimer.timeRemaining = state.intervalTimer.workTime * 1000;
-    state.intervalTimer.intervalStart = now;
-    intervalStatus.textContent = `WORK - Round ${state.intervalTimer.currentRound}`;
-    state.intervalTimer.lastBeep = null;
-    
-  } else if (state.intervalTimer.phase === 'work') {
-    // Work -> Rest
-    state.intervalTimer.phase = 'rest';
-    state.intervalTimer.timeRemaining = state.intervalTimer.restTime * 1000;
-    state.intervalTimer.intervalStart = now;
-    intervalStatus.textContent = `REST - Round ${state.intervalTimer.currentRound}`;
-    state.intervalTimer.lastBeep = null;
-    
-  } else if (state.intervalTimer.phase === 'rest') {
-    // Rest -> Next round or finish
-    const totalRounds = state.intervalTimer.totalRounds;
-    
-    if (totalRounds === null || state.intervalTimer.currentRound < totalRounds) {
-      // Next round
-      state.intervalTimer.currentRound++;
-      state.intervalTimer.phase = 'work';
-      state.intervalTimer.timeRemaining = state.intervalTimer.workTime * 1000;
-      state.intervalTimer.intervalStart = now;
-      intervalStatus.textContent = `WORK - Round ${state.intervalTimer.currentRound}`;
-      state.intervalTimer.lastBeep = null;
-      updateIntervalRounds();
-      
-    } else {
-      // Finish
-      stopIntervalTimer();
-      intervalStatus.textContent = 'Session Complete!';
-      canvas.classList.remove('glow-green');
-    }
-  }
-}
-
-function toggleIntervalPause() {
-  state.intervalTimer.isPaused = !state.intervalTimer.isPaused;
-  
-  if (state.intervalTimer.isPaused) {
-    // Paused
-    canvas.classList.remove('glow-green');
-    canvas.classList.add('glow-yellow');
-    intervalStatus.textContent = 'PAUSED';
-    state.intervalTimer.pauseTime = Date.now();
-    
-  } else {
-    // Resumed
-    canvas.classList.remove('glow-yellow');
-    canvas.classList.add('glow-green');
-    
-    // Adjust interval start to account for pause duration
-    const pauseDuration = Date.now() - state.intervalTimer.pauseTime;
-    state.intervalTimer.intervalStart += pauseDuration;
-    state.intervalTimer.sessionStart += pauseDuration;
-    
-    // Restore status
-    const phase = state.intervalTimer.phase;
-    if (phase === 'countdown') {
-      intervalStatus.textContent = 'GET READY';
-    } else if (phase === 'work') {
-      intervalStatus.textContent = `WORK - Round ${state.intervalTimer.currentRound}`;
-    } else if (phase === 'rest') {
-      intervalStatus.textContent = `REST - Round ${state.intervalTimer.currentRound}`;
-    }
-  }
-}
-
-function stopIntervalTimer() {
-  if (intervalTimerInterval) {
-    clearInterval(intervalTimerInterval);
-    intervalTimerInterval = null;
-  }
-  
-  state.intervalTimer.phase = 'waiting';
-  state.intervalTimer.isPaused = false;
-  canvas.classList.remove('glow-green', 'glow-yellow');
-  
-  // Don't reset the session - keep the completed data
-  digital.textContent = '00:00.0';
-  intervalStatus.textContent = 'Tap clock to start';
-}
-
-function updateIntervalRounds() {
-  const total = state.intervalTimer.totalRounds;
-  const current = state.intervalTimer.currentRound;
-  
-  if (total === null) {
-    intervalRounds.textContent = `Round ${current}`;
-  } else {
-    intervalRounds.textContent = `Round ${current}/${total}`;
-  }
-}
-
-function updateIntervalSummary() {
-  summaryCountdown.textContent = `${state.intervalTimer.countdown}s`;
-  summaryWork.textContent = `${state.intervalTimer.workTime}s`;
-  summaryRest.textContent = `${state.intervalTimer.restTime}s`;
-  summaryRounds.textContent = state.intervalTimer.totalRounds === null ? '∞' : state.intervalTimer.totalRounds;
-}
-
-let resetHoldTimer = null;
-let resetHoldStart = null;
-let saveHoldTimer = null;
-let saveHoldStart = null;
-let resetIntervalHoldTimer = null;
-
-function resetSession() {
-  // Stop any running timers
-  stopDigitalTimer();
-  
-  if (state.currentMode === 'lapTimer') {
-    // Reset lap timer state while preserving user settings
-    state.lapTimer.ghost = null;
-    state.lapTimer.laps = [];
-    state.lapTimer.lastTap = null;
-    state.lapTimer.sessionStart = null;
-    state.lapTimer.hasCompletedLap = false;
-    state.lapTimer.lastSplit = 0;
-    state.lapTimer.timerRunning = false;
-    state.lapTimer.digitalTimerRunning = false;
-    state.lapTimer.isFinished = false;
-    state.lapTimer.lapCount = 1;
-    
-    // Clear UI
-    list.innerHTML = '';
-    digital.textContent = '00:00.0';
-    totalClock.textContent = '00:00.0';
-    digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
-    
-  } else if (state.currentMode === 'intervalTimer') {
-    // Stop interval timer
-    if (intervalTimerInterval) {
-      clearInterval(intervalTimerInterval);
-      intervalTimerInterval = null;
-    }
-    
-    // Reset interval timer state
-    state.intervalTimer.currentRound = 0;
-    state.intervalTimer.completedRounds = [];
-    state.intervalTimer.phase = 'waiting';
-    state.intervalTimer.timeRemaining = 0;
-    state.intervalTimer.sessionStart = null;
-    state.intervalTimer.intervalStart = null;
-    state.intervalTimer.isPaused = false;
-    state.intervalTimer.ghostSeconds = null;
-    state.intervalTimer.lastBeep = null;
-    state.intervalTimer.pauseTime = null;
-    
-    // Clear UI
-    digital.textContent = '00:00.0';
-    totalClock.textContent = '00:00.0';
-    intervalStatus.textContent = 'Tap clock to start';
-    intervalRounds.textContent = '';
-    
-    // Remove glow
-    canvas.classList.remove('glow-green', 'glow-yellow');
-  }
-}
-
-function startResetHold() {
-  resetHoldStart = Date.now();
-  resetBtn.classList.add('holding');
-  
-  resetHoldTimer = setTimeout(() => {
-    // Reset completed
-    resetBtn.classList.remove('holding');
-    resetBtn.classList.add('reset-complete');
-    
-    // Execute reset
-    resetSession();
-    
-    setTimeout(() => {
-      resetBtn.classList.remove('reset-complete');
-    }, 500);
-  }, RESET_HOLD_TIME);
-}
-
-function cancelResetHold() {
-  if (resetHoldTimer) {
-    clearTimeout(resetHoldTimer);
-    resetHoldTimer = null;
-  }
-  resetHoldStart = null;
-  resetBtn.classList.remove('holding');
-}
-
-function startSaveHold() {
-  // Only for lap timer mode
-  if (state.currentMode !== 'lapTimer') return;
-  
-  saveHoldStart = Date.now();
-  saveBtn.classList.add('holding');
-  
-  saveHoldTimer = setTimeout(() => {
-    // Save completed
-    saveBtn.classList.remove('holding');
-    saveBtn.classList.add('save-complete');
-    
-    // Execute save
-    stopDigitalTimer();
-    state.lapTimer.isFinished = true;
-    digital.textContent = 'Session Finished';
-    totalClock.textContent = fmt(Date.now() - state.lapTimer.sessionStart);
-    
-    // Prompt for session name if there are laps
-    if (state.lapTimer.laps.length > 0) {
-      const sessionStart = new Date(state.lapTimer.sessionStart);
-      const defaultName = formatDateForFilename(sessionStart);
-      
-      const sessionName = prompt('Enter a name for this session (or leave blank for default):', defaultName);
-      
-      if (sessionName !== null) { // User didn't cancel
-        const finalName = sessionName.trim() || defaultName;
-        exportWorkout(finalName);
-      }
-    }
-    
-    setTimeout(() => {
-      saveBtn.classList.remove('save-complete');
-    }, 500);
-  }, RESET_HOLD_TIME);
-}
-
-function cancelSaveHold() {
-  if (saveHoldTimer) {
-    clearTimeout(saveHoldTimer);
-    saveHoldTimer = null;
-  }
-  saveHoldStart = null;
-  saveBtn.classList.remove('holding');
-}
-
-// ============================================================================
-// EVENT HANDLERS SETUP
-// ============================================================================
-
-function setupEventListeners() {
-  // Menu button
-  menuBtn.onclick = () => {
-    menu.classList.add('open');
-    menuOverlay.classList.add('visible');
-  };
-
-  // Menu close button and overlay
-  document.querySelector('.menu-close').onclick = () => {
-    menu.classList.remove('open');
-    menuOverlay.classList.remove('visible');
-  };
-
-  menuOverlay.onclick = () => {
-    menu.classList.remove('open');
-    menuOverlay.classList.remove('visible');
-    options.classList.remove('open');
-    intervalConfigPanel.classList.remove('open');
-  };
-
-  // Mode switching
-  document.querySelectorAll('.mode-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const mode = item.dataset.mode;
-      switchMode(mode);
-    });
+    lastDeletedItem = null;
+    saveData();
+    updateDisplay();
   });
 
-  // Settings from menu
-  document.getElementById('menuSettings').onclick = () => {
-    menu.classList.remove('open');
-    menuOverlay.classList.remove('visible');
-    options.classList.add('open');
-  };
+  document.getElementById('resetBtn').addEventListener('click', function() {
+    if (confirm('Clear all hours and tips data? This cannot be undone.')) {
+      totalHours = 0;
+      totalTips = 0;
+      hoursEntries = [];
+      tipsEntries = [];
+      lastDeletedItem = null;
+      localStorage.removeItem('endOfDayData');
+      updateDisplay();
+    }
+  });
 
-  // Canvas tap and text selection prevention
-  if (canvas) {
-    canvas.addEventListener('pointerdown', handleTap);
-    
-    const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn];
-    if (configIntervalsBtn) preventSelectElements.push(configIntervalsBtn);
-    if (stopIntervalBtn) preventSelectElements.push(stopIntervalBtn);
-    if (resetIntervalBtn) preventSelectElements.push(resetIntervalBtn);
+  loadData();
+}
 
-    preventSelectElements.forEach(el => {
-      if (el) {
-        el.addEventListener('selectstart', (e) => e.preventDefault());
-        el.addEventListener('mousedown', (e) => {
-          if (e.detail > 1) {
-            e.preventDefault();
-          }
+// ============================================
+// SERVICE WORKER & PWA
+// ============================================
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(function(registration) {
+        console.log('Service Worker registered:', registration.scope);
+        
+        registration.addEventListener('updatefound', function() {
+          const newWorker = registration.installing;
+          newWorker.addEventListener('statechange', function() {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('New version available! Refresh to update.');
+            }
+          });
         });
-      }
-    });
-  } else {
-    console.error('setupEventListeners: Canvas not found!');
-  }
-
-  // Keyboard shortcuts
-  document.addEventListener('keydown', (e) => {
-    if (options.classList.contains('open') || intervalConfigPanel.classList.contains('open') || menu.classList.contains('open')) {
-      return;
-    }
-    
-    if (e.key === ' ') {
-      e.preventDefault();
-      handleTap();
-    } else if (e.key === 's' && e.ctrlKey) {
-      e.preventDefault();
-      if (state.currentMode === 'lapTimer') {
-        startSaveHold();
-      }
-    } else if (e.key === 'Delete' && e.shiftKey) {
-      e.preventDefault();
-      startResetHold();
-    }
+      })
+      .catch(function(err) {
+        console.error('Service Worker registration failed:', err);
+      });
   });
-
-  // Dark mode toggle
-  darkToggle.onchange = e => {
-    state.display.dark = e.target.checked;
-    saveSettings();
-  };
-
-  // Rest tracking toggle
-  toggleRestBtn.addEventListener('click', () => {
-    state.lapTimer.trackRest = !state.lapTimer.trackRest;
-
-    if (!state.lapTimer.trackRest) {
-      state.lapTimer.mode = 'lap';
-    } else if (state.lapTimer.mode === 'lap') {
-      state.lapTimer.mode = 'rest';
-    }
-
-    toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ✓' : 'Rest ✗';
-    digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
-    saveSettings();
-  });
-
-  // Ghost hand toggle
-  ghostToggle.onchange = () => {
-    state.display.ghostHand = ghostToggle.checked;
-    saveSettings();
-  };
-
-  // Thicker hands toggle
-  thickerHandsToggle.onchange = () => {
-    state.display.thickerHands = thickerHandsToggle.checked;
-    saveSettings();
-  };
-
-  // Guard toggle
-  guardToggle.onchange = e => {
-    state.lapTimer.guard = e.target.checked;
-    saveSettings();
-  };
-
-  // Visibility change
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      requestWakeLock();
-    } else {
-      releaseWakeLock();
-    }
-  });
-
-  // Reset button hold handlers
-  resetBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    startResetHold();
-  });
-
-  resetBtn.addEventListener('pointerup', (e) => {
-    e.preventDefault();
-    cancelResetHold();
-  });
-
-  resetBtn.addEventListener('pointerleave', (e) => {
-    cancelResetHold();
-  });
-
-  resetBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    cancelResetHold();
-  });
-
-  // Save button hold handlers
-  saveBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    startSaveHold();
-  });
-
-  saveBtn.addEventListener('pointerup', (e) => {
-    e.preventDefault();
-    cancelSaveHold();
-  });
-
-  saveBtn.addEventListener('pointerleave', (e) => {
-    cancelSaveHold();
-  });
-
-  saveBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    cancelSaveHold();
-  });
-
-  // Interval timer controls
-  configIntervalsBtn.onclick = () => {
-    intervalConfigPanel.classList.add('open');
-  };
-
-  stopIntervalBtn.onclick = () => {
-    if (confirm('Stop interval timer?')) {
-      stopIntervalTimer();
-      resetSession();
-    }
-  };
-
-  // Interval reset button hold handlers
-  resetIntervalBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    resetIntervalBtn.classList.add('holding');
-    
-    resetIntervalHoldTimer = setTimeout(() => {
-      resetIntervalBtn.classList.remove('holding');
-      resetIntervalBtn.classList.add('reset-complete');
-      resetSession();
-      setTimeout(() => {
-        resetIntervalBtn.classList.remove('reset-complete');
-      }, 500);
-    }, RESET_HOLD_TIME);
-  });
-
-  resetIntervalBtn.addEventListener('pointerup', (e) => {
-    e.preventDefault();
-    if (resetIntervalHoldTimer) {
-      clearTimeout(resetIntervalHoldTimer);
-      resetIntervalHoldTimer = null;
-    }
-    resetIntervalBtn.classList.remove('holding');
-  });
-
-  resetIntervalBtn.addEventListener('pointerleave', () => {
-    if (resetIntervalHoldTimer) {
-      clearTimeout(resetIntervalHoldTimer);
-      resetIntervalHoldTimer = null;
-    }
-    resetIntervalBtn.classList.remove('holding');
-  });
-
-  resetIntervalBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    if (resetIntervalHoldTimer) {
-      clearTimeout(resetIntervalHoldTimer);
-      resetIntervalHoldTimer = null;
-    }
-    resetIntervalBtn.classList.remove('holding');
-  });
-
-  // Interval config panel
-  infiniteRounds.onchange = () => {
-    roundsInput.disabled = infiniteRounds.checked;
-    if (infiniteRounds.checked) {
-      roundsInput.value = '';
-    }
-  };
-
-  volumeSlider.oninput = () => {
-    volumeValue.textContent = `${volumeSlider.value}%`;
-  };
-
-  saveIntervalConfig.onclick = () => {
-    state.intervalTimer.countdown = parseInt(countdownInput.value) || 5;
-    state.intervalTimer.workTime = parseInt(workInput.value) || 60;
-    state.intervalTimer.restTime = parseInt(restInput.value) || 60;
-    state.intervalTimer.totalRounds = infiniteRounds.checked ? null : (parseInt(roundsInput.value) || null);
-    state.intervalTimer.beepEnabled = beepEnabled.checked;
-    state.intervalTimer.volume = parseInt(volumeSlider.value);
-    
-    updateIntervalSummary();
-    saveSettings();
-    intervalConfigPanel.classList.remove('open');
-  };
-
-  cancelIntervalConfig.onclick = () => {
-    countdownInput.value = state.intervalTimer.countdown;
-    workInput.value = state.intervalTimer.workTime;
-    restInput.value = state.intervalTimer.restTime;
-    infiniteRounds.checked = state.intervalTimer.totalRounds === null;
-    roundsInput.value = state.intervalTimer.totalRounds || '';
-    roundsInput.disabled = infiniteRounds.checked;
-    beepEnabled.checked = state.intervalTimer.beepEnabled;
-    volumeSlider.value = state.intervalTimer.volume;
-    volumeValue.textContent = `${state.intervalTimer.volume}%`;
-    
-    intervalConfigPanel.classList.remove('open');
-  };
 }
+
+window.addEventListener('load', function() {
+  var displayMode = 'browser';
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    displayMode = 'standalone';
+  } else if (window.navigator.standalone === true) {
+    displayMode = 'standalone-ios';
+  }
+  console.log('Display mode:', displayMode);
+});
+
+document.body.addEventListener('touchmove', function(e) {
+  if (e.target === document.body) {
+    e.preventDefault();
+  }
+}, { passive: false });
