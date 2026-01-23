@@ -627,7 +627,7 @@ function handleIntervalTimerTap() {
 let canvas, digital, totalClock, list, toggleRestBtn, ghostToggle, thickerHandsToggle;
 let guardToggle, darkToggle, menuBtn, resetBtn, saveBtn, options, menu;
 let lapTimerControls, intervalTimerControls, intervalDisplay, intervalStatus, intervalRounds;
-let configIntervalsBtn, stopIntervalBtn, resetIntervalBtn, intervalConfigPanel;
+let configIntervalsBtn, stopIntervalBtn, intervalConfigPanel;
 let countdownInput, workInput, restInput, roundsInput, infiniteRounds, beepEnabled;
 let volumeSlider, volumeValue, saveIntervalConfig, cancelIntervalConfig, menuOverlay;
 let summaryCountdown, summaryWork, summaryRest, summaryRounds;
@@ -663,7 +663,6 @@ function initializeDOM() {
   intervalRounds = document.getElementById('intervalRounds');
   configIntervalsBtn = document.getElementById('configIntervalsBtn');
   stopIntervalBtn = document.getElementById('stopIntervalBtn');
-  resetIntervalBtn = document.getElementById('resetIntervalBtn');
   intervalConfigPanel = document.getElementById('intervalConfigPanel');
   countdownInput = document.getElementById('countdownInput');
   workInput = document.getElementById('workInput');
@@ -960,7 +959,11 @@ function transitionIntervalPhase() {
       updateIntervalRounds();
       
     } else {
-      // Finish
+      // Finish - triple beep like a competition bell
+      beep(1000, 100);
+      setTimeout(() => beep(1000, 100), 150);
+      setTimeout(() => beep(1000, 100), 300);
+      
       stopIntervalTimer();
       intervalStatus.textContent = 'DONE!';
       intervalStatus.className = 'interval-status done';
@@ -1043,7 +1046,6 @@ let resetHoldTimer = null;
 let resetHoldStart = null;
 let saveHoldTimer = null;
 let saveHoldStart = null;
-let resetIntervalHoldTimer = null;
 
 function resetSession() {
   // Stop any running timers
@@ -1220,7 +1222,6 @@ function setupEventListeners() {
     const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn];
     if (configIntervalsBtn) preventSelectElements.push(configIntervalsBtn);
     if (stopIntervalBtn) preventSelectElements.push(stopIntervalBtn);
-    if (resetIntervalBtn) preventSelectElements.push(resetIntervalBtn);
 
     preventSelectElements.forEach(el => {
       if (el) {
@@ -1355,47 +1356,6 @@ function setupEventListeners() {
       resetSession();
     }
   };
-
-  // Interval reset button hold handlers
-  resetIntervalBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    resetIntervalBtn.classList.add('holding');
-    
-    resetIntervalHoldTimer = setTimeout(() => {
-      resetIntervalBtn.classList.remove('holding');
-      resetIntervalBtn.classList.add('reset-complete');
-      resetSession();
-      setTimeout(() => {
-        resetIntervalBtn.classList.remove('reset-complete');
-      }, 500);
-    }, RESET_HOLD_TIME);
-  });
-
-  resetIntervalBtn.addEventListener('pointerup', (e) => {
-    e.preventDefault();
-    if (resetIntervalHoldTimer) {
-      clearTimeout(resetIntervalHoldTimer);
-      resetIntervalHoldTimer = null;
-    }
-    resetIntervalBtn.classList.remove('holding');
-  });
-
-  resetIntervalBtn.addEventListener('pointerleave', () => {
-    if (resetIntervalHoldTimer) {
-      clearTimeout(resetIntervalHoldTimer);
-      resetIntervalHoldTimer = null;
-    }
-    resetIntervalBtn.classList.remove('holding');
-  });
-
-  resetIntervalBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    if (resetIntervalHoldTimer) {
-      clearTimeout(resetIntervalHoldTimer);
-      resetIntervalHoldTimer = null;
-    }
-    resetIntervalBtn.classList.remove('holding');
-  });
 
   // Interval config panel
   infiniteRounds.onchange = () => {
