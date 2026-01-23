@@ -919,8 +919,8 @@ function updateIntervalTimer() {
 function transitionIntervalPhase() {
   const now = Date.now();
   
-  // Final beep for transition
-  beep(1000, 200);
+  // Final beep for transition (2.5x longer so it can't be missed)
+  beep(1000, 500);
   
   // Update ghost hand to show where the chosen hand is at this transition
   const baseSeconds = (now / 1000) % 60;
