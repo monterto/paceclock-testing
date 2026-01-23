@@ -599,6 +599,7 @@ const ghostToggle = document.getElementById('ghostToggle');
 const thickerHandsToggle = document.getElementById('thickerHandsToggle');
 const guardToggle = document.getElementById('guardToggle');
 const darkToggle = document.getElementById('darkToggle');
+const optionsBtn = document.getElementById('optionsBtn');
 const resetBtn = document.getElementById('resetBtn');
 const saveBtn = document.getElementById('saveBtn');
 const options = document.getElementById('options');
@@ -1106,6 +1107,8 @@ document.getElementById('menuSettings').onclick = () => {
 
 // Prevent text selection on buttons and controls
 const canvas = document.getElementById('clock');
+canvas.addEventListener('pointerdown', handleTap);
+
 const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn, configIntervalsBtn, stopIntervalBtn];
 preventSelectElements.forEach(el => {
   if (el) {
@@ -1141,6 +1144,8 @@ document.addEventListener('keydown', (e) => {
 
 // Finish with session name prompt - REMOVED, now handled by hold interaction
 
+// Options
+optionsBtn.onclick = () => options.classList.add('open');
 
 // Dark mode toggle
 darkToggle.onchange = e => {
