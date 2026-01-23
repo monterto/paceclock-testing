@@ -1096,23 +1096,25 @@ function setupEventListeners() {
   // Canvas tap and text selection prevention
   if (canvas) {
     canvas.addEventListener('pointerdown', handleTap);
+    
+    const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn];
+    if (configIntervalsBtn) preventSelectElements.push(configIntervalsBtn);
+    if (stopIntervalBtn) preventSelectElements.push(stopIntervalBtn);
+    if (resetIntervalBtn) preventSelectElements.push(resetIntervalBtn);
+
+    preventSelectElements.forEach(el => {
+      if (el) {
+        el.addEventListener('selectstart', (e) => e.preventDefault());
+        el.addEventListener('mousedown', (e) => {
+          if (e.detail > 1) {
+            e.preventDefault();
+          }
+        });
+      }
+    });
+  } else {
+    console.error('setupEventListeners: Canvas not found!');
   }
-
-  const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn];
-  if (configIntervalsBtn) preventSelectElements.push(configIntervalsBtn);
-  if (stopIntervalBtn) preventSelectElements.push(stopIntervalBtn);
-  if (resetIntervalBtn) preventSelectElements.push(resetIntervalBtn);
-
-  preventSelectElements.forEach(el => {
-    if (el) {
-      el.addEventListener('selectstart', (e) => e.preventDefault());
-      el.addEventListener('mousedown', (e) => {
-        if (e.detail > 1) {
-          e.preventDefault();
-        }
-      });
-    }
-  });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -1482,6 +1484,9 @@ stopIntervalBtn.onclick = () => {
     resetSession();
   }
 };
+
+// Interval reset button (uses same hold mechanism as lap timer reset)
+let resetIntervalHoldTimer = null;
 
 resetIntervalBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
