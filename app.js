@@ -60,8 +60,7 @@ const DEFAULT_STATE = {
     ghostColor: null,
     ghostHandOffset: null,
     lastBeep: null,
-    pauseTime: null,
-    frozenClockTime: null
+    pauseTime: null
   }
 };
 
@@ -370,11 +369,6 @@ function drawClock() {
     });
 
   } else if (state.currentMode === 'intervalTimer') {
-    // Use frozen time if paused, otherwise use current time
-    const clockBase = (state.intervalTimer.isPaused && state.intervalTimer.frozenClockTime !== null) 
-      ? (state.intervalTimer.frozenClockTime / 1000) % 60
-      : base;
-    
     // Draw interval timer ghost hand FIRST (behind regular hands)
     if (state.display.ghostHand && state.intervalTimer.ghostSeconds !== null && state.intervalTimer.ghostColor) {
       const a = state.intervalTimer.ghostSeconds * Math.PI / 30 - Math.PI / 2;
@@ -400,9 +394,9 @@ function drawClock() {
       ctx.globalAlpha = 1;
     }
     
-    // Interval timer: show all 4 hands (frozen if paused)
+    // Interval timer: show all 4 hands continuously
     state.lapTimer.hands.forEach(h => {
-      const s = (clockBase + h.offset) % 60;
+      const s = (base + h.offset) % 60;
       const a = s * Math.PI / 30 - Math.PI / 2;
 
       // Outline
@@ -694,7 +688,7 @@ function initializeDOM() {
 
 function initializeUI() {
   darkToggle.checked = state.display.dark;
-  toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ✓' : 'Rest ✗';
+  toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ☑' : 'Rest ☐';
   digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
   ghostToggle.checked = state.display.ghostHand;
   thickerHandsToggle.checked = state.display.thickerHands;
@@ -974,15 +968,14 @@ function toggleIntervalPause() {
   state.intervalTimer.isPaused = !state.intervalTimer.isPaused;
   
   if (state.intervalTimer.isPaused) {
-    // Paused - freeze the clock
+    // Paused
     canvas.classList.remove('glow-green');
     canvas.classList.add('glow-yellow');
     intervalStatus.textContent = 'PAUSED';
     state.intervalTimer.pauseTime = Date.now();
-    state.intervalTimer.frozenClockTime = Date.now();
     
   } else {
-    // Resumed - unfreeze the clock
+    // Resumed
     canvas.classList.remove('glow-yellow');
     canvas.classList.add('glow-green');
     
@@ -990,7 +983,6 @@ function toggleIntervalPause() {
     const pauseDuration = Date.now() - state.intervalTimer.pauseTime;
     state.intervalTimer.intervalStart += pauseDuration;
     state.intervalTimer.sessionStart += pauseDuration;
-    state.intervalTimer.frozenClockTime = null;
     
     // Restore status
     const phase = state.intervalTimer.phase;
@@ -1086,7 +1078,6 @@ function resetSession() {
     state.intervalTimer.ghostHandOffset = null;
     state.intervalTimer.lastBeep = null;
     state.intervalTimer.pauseTime = null;
-    state.intervalTimer.frozenClockTime = null;
     
     // Clear UI
     digital.textContent = '00:00.0';
@@ -1270,7 +1261,7 @@ function setupEventListeners() {
       state.lapTimer.mode = 'rest';
     }
 
-    toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ✓' : 'Rest ✗';
+    toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ☑' : 'Rest ☐';
     digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
     saveSettings();
   });
