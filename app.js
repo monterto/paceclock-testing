@@ -878,6 +878,7 @@ function startIntervalTimer() {
   
   canvas.classList.add('glow-green');
   intervalStatus.textContent = 'GET READY';
+  intervalStatus.className = 'interval-status countdown';
   
   updateIntervalRounds();
   
@@ -930,7 +931,8 @@ function transitionIntervalPhase() {
     state.intervalTimer.phase = 'work';
     state.intervalTimer.timeRemaining = state.intervalTimer.workTime * 1000;
     state.intervalTimer.intervalStart = now;
-    intervalStatus.textContent = `WORK - Round ${state.intervalTimer.currentRound}`;
+    intervalStatus.textContent = `WORK: ${state.intervalTimer.currentRound}`;
+    intervalStatus.className = 'interval-status work';
     state.intervalTimer.lastBeep = null;
     
   } else if (state.intervalTimer.phase === 'work') {
@@ -938,7 +940,8 @@ function transitionIntervalPhase() {
     state.intervalTimer.phase = 'rest';
     state.intervalTimer.timeRemaining = state.intervalTimer.restTime * 1000;
     state.intervalTimer.intervalStart = now;
-    intervalStatus.textContent = `REST - Round ${state.intervalTimer.currentRound}`;
+    intervalStatus.textContent = `REST: ${state.intervalTimer.currentRound}`;
+    intervalStatus.className = 'interval-status rest';
     state.intervalTimer.lastBeep = null;
     
   } else if (state.intervalTimer.phase === 'rest') {
@@ -951,14 +954,16 @@ function transitionIntervalPhase() {
       state.intervalTimer.phase = 'work';
       state.intervalTimer.timeRemaining = state.intervalTimer.workTime * 1000;
       state.intervalTimer.intervalStart = now;
-      intervalStatus.textContent = `WORK - Round ${state.intervalTimer.currentRound}`;
+      intervalStatus.textContent = `WORK: ${state.intervalTimer.currentRound}`;
+      intervalStatus.className = 'interval-status work';
       state.intervalTimer.lastBeep = null;
       updateIntervalRounds();
       
     } else {
       // Finish
       stopIntervalTimer();
-      intervalStatus.textContent = 'Session Complete!';
+      intervalStatus.textContent = 'DONE!';
+      intervalStatus.className = 'interval-status done';
       canvas.classList.remove('glow-green');
     }
   }
@@ -972,6 +977,7 @@ function toggleIntervalPause() {
     canvas.classList.remove('glow-green');
     canvas.classList.add('glow-yellow');
     intervalStatus.textContent = 'PAUSED';
+    intervalStatus.className = 'interval-status paused';
     state.intervalTimer.pauseTime = Date.now();
     
   } else {
@@ -988,10 +994,13 @@ function toggleIntervalPause() {
     const phase = state.intervalTimer.phase;
     if (phase === 'countdown') {
       intervalStatus.textContent = 'GET READY';
+      intervalStatus.className = 'interval-status countdown';
     } else if (phase === 'work') {
-      intervalStatus.textContent = `WORK - Round ${state.intervalTimer.currentRound}`;
+      intervalStatus.textContent = `WORK: ${state.intervalTimer.currentRound}`;
+      intervalStatus.className = 'interval-status work';
     } else if (phase === 'rest') {
-      intervalStatus.textContent = `REST - Round ${state.intervalTimer.currentRound}`;
+      intervalStatus.textContent = `REST: ${state.intervalTimer.currentRound}`;
+      intervalStatus.className = 'interval-status rest';
     }
   }
 }
@@ -1008,7 +1017,8 @@ function stopIntervalTimer() {
   
   // Don't reset the session - keep the completed data
   digital.textContent = '00:00.0';
-  intervalStatus.textContent = 'Tap clock to start';
+  intervalStatus.textContent = 'TAP TO START';
+  intervalStatus.className = 'interval-status waiting';
 }
 
 function updateIntervalRounds() {
@@ -1082,7 +1092,8 @@ function resetSession() {
     // Clear UI
     digital.textContent = '00:00.0';
     totalClock.textContent = '00:00.0';
-    intervalStatus.textContent = 'Tap clock to start';
+    intervalStatus.textContent = 'TAP TO START';
+    intervalStatus.className = 'interval-status waiting';
     intervalRounds.textContent = '';
     
     // Remove glow
