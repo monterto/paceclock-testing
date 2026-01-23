@@ -596,22 +596,133 @@ function handleIntervalTimerTap() {
 }
 
 // ============================================================================
-// UI ELEMENTS
+// UI ELEMENTS - Will be initialized after DOM loads
 // ============================================================================
 
-// Get DOM elements
-const digital = document.getElementById('digital');
-const totalClock = document.getElementById('totalClock');
-const list = document.getElementById('list');
-const toggleRestBtn = document.getElementById('toggleRestBtn');
-const ghostToggle = document.getElementById('ghostToggle');
-const thickerHandsToggle = document.getElementById('thickerHandsToggle');
-const guardToggle = document.getElementById('guardToggle');
-const darkToggle = document.getElementById('darkToggle');
-const optionsBtn = document.getElementById('optionsBtn');
-const resetBtn = document.getElementById('resetBtn');
-const saveBtn = document.getElementById('saveBtn');
-const options = document.getElementById('options');
+let canvas, digital, totalClock, list, toggleRestBtn, ghostToggle, thickerHandsToggle;
+let guardToggle, darkToggle, menuBtn, resetBtn, saveBtn, options, menu;
+let lapTimerControls, intervalTimerControls, intervalDisplay, intervalStatus, intervalRounds;
+let configIntervalsBtn, stopIntervalBtn, resetIntervalBtn, intervalConfigPanel;
+let countdownInput, workInput, restInput, roundsInput, infiniteRounds, beepEnabled;
+let volumeSlider, volumeValue, saveIntervalConfig, cancelIntervalConfig, menuOverlay;
+let summaryCountdown, summaryWork, summaryRest, summaryRounds;
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+function initializeDOM() {
+  // Get all DOM elements
+  canvas = document.getElementById('clock');
+  digital = document.getElementById('digital');
+  totalClock = document.getElementById('totalClock');
+  list = document.getElementById('list');
+  toggleRestBtn = document.getElementById('toggleRestBtn');
+  ghostToggle = document.getElementById('ghostToggle');
+  thickerHandsToggle = document.getElementById('thickerHandsToggle');
+  guardToggle = document.getElementById('guardToggle');
+  darkToggle = document.getElementById('darkToggle');
+  menuBtn = document.getElementById('menuBtn');
+  resetBtn = document.getElementById('resetBtn');
+  saveBtn = document.getElementById('saveBtn');
+  options = document.getElementById('options');
+  menu = document.getElementById('menu');
+  
+  // Lap timer elements
+  lapTimerControls = document.getElementById('lapTimerControls');
+  
+  // Interval timer elements
+  intervalTimerControls = document.getElementById('intervalTimerControls');
+  intervalDisplay = document.getElementById('intervalDisplay');
+  intervalStatus = document.getElementById('intervalStatus');
+  intervalRounds = document.getElementById('intervalRounds');
+  configIntervalsBtn = document.getElementById('configIntervalsBtn');
+  stopIntervalBtn = document.getElementById('stopIntervalBtn');
+  resetIntervalBtn = document.getElementById('resetIntervalBtn');
+  intervalConfigPanel = document.getElementById('intervalConfigPanel');
+  countdownInput = document.getElementById('countdownInput');
+  workInput = document.getElementById('workInput');
+  restInput = document.getElementById('restInput');
+  roundsInput = document.getElementById('roundsInput');
+  infiniteRounds = document.getElementById('infiniteRounds');
+  beepEnabled = document.getElementById('beepEnabled');
+  volumeSlider = document.getElementById('volumeSlider');
+  volumeValue = document.getElementById('volumeValue');
+  saveIntervalConfig = document.getElementById('saveIntervalConfig');
+  cancelIntervalConfig = document.getElementById('cancelIntervalConfig');
+  menuOverlay = document.getElementById('menuOverlay');
+  
+  // Summary displays
+  summaryCountdown = document.getElementById('summaryCountdown');
+  summaryWork = document.getElementById('summaryWork');
+  summaryRest = document.getElementById('summaryRest');
+  summaryRounds = document.getElementById('summaryRounds');
+  
+  console.log('DOM initialized. Canvas:', canvas);
+}
+
+function initializeUI() {
+  darkToggle.checked = state.display.dark;
+  toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ✓' : 'Rest ✗';
+  digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
+  ghostToggle.checked = state.display.ghostHand;
+  thickerHandsToggle.checked = state.display.thickerHands;
+  guardToggle.checked = state.lapTimer.guard;
+  
+  // Initialize interval config inputs
+  countdownInput.value = state.intervalTimer.countdown;
+  workInput.value = state.intervalTimer.workTime;
+  restInput.value = state.intervalTimer.restTime;
+  infiniteRounds.checked = state.intervalTimer.totalRounds === null;
+  roundsInput.value = state.intervalTimer.totalRounds || '';
+  roundsInput.disabled = infiniteRounds.checked;
+  beepEnabled.checked = state.intervalTimer.beepEnabled;
+  volumeSlider.value = state.intervalTimer.volume;
+  volumeValue.textContent = `${state.intervalTimer.volume}%`;
+  
+  // Set initial mode
+  updateModeUI();
+}
+
+function init() {
+  console.log('Initializing app...');
+  
+  initializeDOM();
+  
+  if (!canvas) {
+    console.error('CRITICAL: Canvas element not found!');
+    return;
+  }
+  
+  console.log('Canvas found:', canvas);
+  console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+  
+  loadSettings();
+  setupEventListeners();
+  initializeUI();
+  requestWakeLock();
+  
+  console.log('Starting render loop...');
+  let frameCount = 0;
+  
+  (function render() {
+    drawClock();
+    frameCount++;
+    if (frameCount === 1) {
+      console.log('First frame rendered');
+    }
+    requestAnimationFrame(render);
+  })();
+}
+
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+  console.log('Waiting for DOM...');
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  console.log('DOM already loaded');
+  init();
+}
 
 // ============================================================================
 // MODE SWITCHING
@@ -1484,6 +1595,9 @@ stopIntervalBtn.onclick = () => {
     resetSession();
   }
 };
+
+// Interval reset button (uses same hold mechanism as lap timer reset)
+let resetIntervalHoldTimer = null;
 
 resetIntervalBtn.addEventListener('pointerdown', (e) => {
   e.preventDefault();
