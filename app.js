@@ -1038,8 +1038,271 @@ saveBtn.addEventListener('touchend', (e) => {
 });
 
 // ============================================================================
+// EVENT HANDLERS SETUP
+// ============================================================================
+
+function setupEventListeners() {
+  // Menu button
+  menuBtn.onclick = () => {
+    menu.classList.add('open');
+    menuOverlay.classList.add('visible');
+  };
+
+  // Menu close button and overlay
+  document.querySelector('.menu-close').onclick = () => {
+    menu.classList.remove('open');
+    menuOverlay.classList.remove('visible');
+  };
+
+  menuOverlay.onclick = () => {
+    menu.classList.remove('open');
+    menuOverlay.classList.remove('visible');
+    options.classList.remove('open');
+    intervalConfigPanel.classList.remove('open');
+  };
+
+  // Mode switching
+  document.querySelectorAll('.mode-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const mode = item.dataset.mode;
+      switchMode(mode);
+    });
+  });
+
+  // Settings from menu
+  document.getElementById('menuSettings').onclick = () => {
+    menu.classList.remove('open');
+    menuOverlay.classList.remove('visible');
+    options.classList.add('open');
+  };
+
+  // Canvas tap and text selection prevention
+  if (canvas) {
+    canvas.addEventListener('pointerdown', handleTap);
+  }
+
+  const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn];
+  if (configIntervalsBtn) preventSelectElements.push(configIntervalsBtn);
+  if (stopIntervalBtn) preventSelectElements.push(stopIntervalBtn);
+  if (resetIntervalBtn) preventSelectElements.push(resetIntervalBtn);
+
+  preventSelectElements.forEach(el => {
+    if (el) {
+      el.addEventListener('selectstart', (e) => e.preventDefault());
+      el.addEventListener('mousedown', (e) => {
+        if (e.detail > 1) {
+          e.preventDefault();
+        }
+      });
+    }
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (options.classList.contains('open') || intervalConfigPanel.classList.contains('open') || menu.classList.contains('open')) {
+      return;
+    }
+    
+    if (e.key === ' ') {
+      e.preventDefault();
+      handleTap();
+    } else if (e.key === 's' && e.ctrlKey) {
+      e.preventDefault();
+      if (state.currentMode === 'lapTimer') {
+        startSaveHold();
+      }
+    } else if (e.key === 'Delete' && e.shiftKey) {
+      e.preventDefault();
+      startResetHold();
+    }
+  });
+
+  // Dark mode toggle
+  darkToggle.onchange = e => {
+    state.display.dark = e.target.checked;
+    saveSettings();
+  };
+
+  // Rest tracking toggle
+  toggleRestBtn.addEventListener('click', () => {
+    state.lapTimer.trackRest = !state.lapTimer.trackRest;
+
+    if (!state.lapTimer.trackRest) {
+      state.lapTimer.mode = 'lap';
+    } else if (state.lapTimer.mode === 'lap') {
+      state.lapTimer.mode = 'rest';
+    }
+
+    toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ✓' : 'Rest ✗';
+    digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
+    saveSettings();
+  });
+
+  // Ghost hand toggle
+  ghostToggle.onchange = () => {
+    state.display.ghostHand = ghostToggle.checked;
+    saveSettings();
+  };
+
+  // Thicker hands toggle
+  thickerHandsToggle.onchange = () => {
+    state.display.thickerHands = thickerHandsToggle.checked;
+    saveSettings();
+  };
+
+  // Guard toggle
+  guardToggle.onchange = e => {
+    state.lapTimer.guard = e.target.checked;
+    saveSettings();
+  };
+
+  // Visibility change
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+  });
+
+  // Reset button hold handlers
+  resetBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    startResetHold();
+  });
+
+  resetBtn.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    cancelResetHold();
+  });
+
+  resetBtn.addEventListener('pointerleave', (e) => {
+    cancelResetHold();
+  });
+
+  resetBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    cancelResetHold();
+  });
+
+  // Save button hold handlers
+  saveBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    startSaveHold();
+  });
+
+  saveBtn.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    cancelSaveHold();
+  });
+
+  saveBtn.addEventListener('pointerleave', (e) => {
+    cancelSaveHold();
+  });
+
+  saveBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    cancelSaveHold();
+  });
+
+  // Interval timer controls
+  configIntervalsBtn.onclick = () => {
+    intervalConfigPanel.classList.add('open');
+  };
+
+  stopIntervalBtn.onclick = () => {
+    if (confirm('Stop interval timer?')) {
+      stopIntervalTimer();
+      resetSession();
+    }
+  };
+
+  // Interval reset button hold handlers
+  resetIntervalBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    resetIntervalBtn.classList.add('holding');
+    
+    resetIntervalHoldTimer = setTimeout(() => {
+      resetIntervalBtn.classList.remove('holding');
+      resetIntervalBtn.classList.add('reset-complete');
+      resetSession();
+      setTimeout(() => {
+        resetIntervalBtn.classList.remove('reset-complete');
+      }, 500);
+    }, RESET_HOLD_TIME);
+  });
+
+  resetIntervalBtn.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    if (resetIntervalHoldTimer) {
+      clearTimeout(resetIntervalHoldTimer);
+      resetIntervalHoldTimer = null;
+    }
+    resetIntervalBtn.classList.remove('holding');
+  });
+
+  resetIntervalBtn.addEventListener('pointerleave', () => {
+    if (resetIntervalHoldTimer) {
+      clearTimeout(resetIntervalHoldTimer);
+      resetIntervalHoldTimer = null;
+    }
+    resetIntervalBtn.classList.remove('holding');
+  });
+
+  resetIntervalBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (resetIntervalHoldTimer) {
+      clearTimeout(resetIntervalHoldTimer);
+      resetIntervalHoldTimer = null;
+    }
+    resetIntervalBtn.classList.remove('holding');
+  });
+
+  // Interval config panel
+  infiniteRounds.onchange = () => {
+    roundsInput.disabled = infiniteRounds.checked;
+    if (infiniteRounds.checked) {
+      roundsInput.value = '';
+    }
+  };
+
+  volumeSlider.oninput = () => {
+    volumeValue.textContent = `${volumeSlider.value}%`;
+  };
+
+  saveIntervalConfig.onclick = () => {
+    state.intervalTimer.countdown = parseInt(countdownInput.value) || 5;
+    state.intervalTimer.workTime = parseInt(workInput.value) || 60;
+    state.intervalTimer.restTime = parseInt(restInput.value) || 60;
+    state.intervalTimer.totalRounds = infiniteRounds.checked ? null : (parseInt(roundsInput.value) || null);
+    state.intervalTimer.beepEnabled = beepEnabled.checked;
+    state.intervalTimer.volume = parseInt(volumeSlider.value);
+    
+    updateIntervalSummary();
+    saveSettings();
+    intervalConfigPanel.classList.remove('open');
+  };
+
+  cancelIntervalConfig.onclick = () => {
+    countdownInput.value = state.intervalTimer.countdown;
+    workInput.value = state.intervalTimer.workTime;
+    restInput.value = state.intervalTimer.restTime;
+    infiniteRounds.checked = state.intervalTimer.totalRounds === null;
+    roundsInput.value = state.intervalTimer.totalRounds || '';
+    roundsInput.disabled = infiniteRounds.checked;
+    beepEnabled.checked = state.intervalTimer.beepEnabled;
+    volumeSlider.value = state.intervalTimer.volume;
+    volumeValue.textContent = `${state.intervalTimer.volume}%`;
+    
+    intervalConfigPanel.classList.remove('open');
+  };
+}
+
+// ============================================================================
 // EVENT HANDLERS
 // ============================================================================
+
+let resetIntervalHoldTimer = null;
 
 function initializeUI() {
   darkToggle.checked = state.display.dark;
@@ -1292,16 +1555,76 @@ cancelIntervalConfig.onclick = () => {
 // INITIALIZATION
 // ============================================================================
 
-console.log('Initializing app...');
-console.log('Canvas element:', canvas);
+function initializeDOM() {
+  // Get all DOM elements
+  canvas = document.getElementById('clock');
+  digital = document.getElementById('digital');
+  totalClock = document.getElementById('totalClock');
+  list = document.getElementById('list');
+  toggleRestBtn = document.getElementById('toggleRestBtn');
+  ghostToggle = document.getElementById('ghostToggle');
+  thickerHandsToggle = document.getElementById('thickerHandsToggle');
+  guardToggle = document.getElementById('guardToggle');
+  darkToggle = document.getElementById('darkToggle');
+  menuBtn = document.getElementById('menuBtn');
+  resetBtn = document.getElementById('resetBtn');
+  saveBtn = document.getElementById('saveBtn');
+  options = document.getElementById('options');
+  menu = document.getElementById('menu');
+  
+  // Lap timer elements
+  lapTimerControls = document.getElementById('lapTimerControls');
+  
+  // Interval timer elements
+  intervalTimerControls = document.getElementById('intervalTimerControls');
+  intervalDisplay = document.getElementById('intervalDisplay');
+  intervalStatus = document.getElementById('intervalStatus');
+  intervalRounds = document.getElementById('intervalRounds');
+  configIntervalsBtn = document.getElementById('configIntervalsBtn');
+  stopIntervalBtn = document.getElementById('stopIntervalBtn');
+  resetIntervalBtn = document.getElementById('resetIntervalBtn');
+  intervalConfigPanel = document.getElementById('intervalConfigPanel');
+  countdownInput = document.getElementById('countdownInput');
+  workInput = document.getElementById('workInput');
+  restInput = document.getElementById('restInput');
+  roundsInput = document.getElementById('roundsInput');
+  infiniteRounds = document.getElementById('infiniteRounds');
+  beepEnabled = document.getElementById('beepEnabled');
+  volumeSlider = document.getElementById('volumeSlider');
+  volumeValue = document.getElementById('volumeValue');
+  saveIntervalConfig = document.getElementById('saveIntervalConfig');
+  cancelIntervalConfig = document.getElementById('cancelIntervalConfig');
+  menuOverlay = document.getElementById('menuOverlay');
+  
+  // Summary displays
+  summaryCountdown = document.getElementById('summaryCountdown');
+  summaryWork = document.getElementById('summaryWork');
+  summaryRest = document.getElementById('summaryRest');
+  summaryRounds = document.getElementById('summaryRounds');
+  
+  console.log('DOM initialized. Canvas:', canvas);
+}
 
-loadSettings();
-initializeUI();
-requestWakeLock();
+function init() {
+  console.log('Initializing app...');
+  
+  initializeDOM();
+  loadSettings();
+  setupEventListeners();
+  initializeUI();
+  requestWakeLock();
+  
+  console.log('Starting render loop...');
+  
+  (function render() {
+    drawClock();
+    requestAnimationFrame(render);
+  })();
+}
 
-console.log('Starting render loop...');
-
-(function render() {
-  drawClock();
-  requestAnimationFrame(render);
-})();
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
