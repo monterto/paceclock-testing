@@ -58,8 +58,10 @@ const DEFAULT_STATE = {
     isPaused: false,
     ghostSeconds: null,
     ghostColor: null,
+    ghostHandOffset: null,
     lastBeep: null,
-    pauseTime: null
+    pauseTime: null,
+    frozenClockTime: null
   }
 };
 
@@ -325,7 +327,7 @@ function drawClock() {
       ctx.globalAlpha = 0.5;
       
       // Subtle outline for better visibility
-      ctx.strokeStyle = state.display.dark ? '#000' : '#fff';
+      ctx.strokeStyle = state.display.dark ? '#888' : '#000';
       ctx.lineWidth = 8;
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -368,13 +370,18 @@ function drawClock() {
     });
 
   } else if (state.currentMode === 'intervalTimer') {
+    // Use frozen time if paused, otherwise use current time
+    const clockBase = (state.intervalTimer.isPaused && state.intervalTimer.frozenClockTime !== null) 
+      ? (state.intervalTimer.frozenClockTime / 1000) % 60
+      : base;
+    
     // Draw interval timer ghost hand FIRST (behind regular hands)
     if (state.display.ghostHand && state.intervalTimer.ghostSeconds !== null && state.intervalTimer.ghostColor) {
       const a = state.intervalTimer.ghostSeconds * Math.PI / 30 - Math.PI / 2;
       ctx.globalAlpha = 0.5;
       
       // Subtle outline for better visibility
-      ctx.strokeStyle = state.display.dark ? '#000' : '#fff';
+      ctx.strokeStyle = state.display.dark ? '#888' : '#000';
       ctx.lineWidth = 10;
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -393,9 +400,9 @@ function drawClock() {
       ctx.globalAlpha = 1;
     }
     
-    // Interval timer: show all 4 hands continuously
+    // Interval timer: show all 4 hands (frozen if paused)
     state.lapTimer.hands.forEach(h => {
-      const s = (base + h.offset) % 60;
+      const s = (clockBase + h.offset) % 60;
       const a = s * Math.PI / 30 - Math.PI / 2;
 
       // Outline
@@ -866,7 +873,14 @@ function startIntervalTimer() {
   // Determine which hand is closest to top at session start
   const ghostHand = calculateGhostHand(now);
   state.intervalTimer.ghostColor = ghostHand.color;
-  state.intervalTimer.ghostSeconds = ghostHand.seconds;
+  
+  // Find the offset of the chosen hand
+  const chosenHand = state.lapTimer.hands.find(h => h.color === ghostHand.color);
+  state.intervalTimer.ghostHandOffset = chosenHand ? chosenHand.offset : 0;
+  
+  // Calculate where this specific hand is right now
+  const baseSeconds = (now / 1000) % 60;
+  state.intervalTimer.ghostSeconds = (baseSeconds + state.intervalTimer.ghostHandOffset) % 60;
   
   canvas.classList.add('glow-green');
   intervalStatus.textContent = 'GET READY';
@@ -913,9 +927,9 @@ function transitionIntervalPhase() {
   // Final beep for transition
   beep(1000, 200);
   
-  // Update ghost hand position to current clock position (keep same color throughout session)
-  const currentSeconds = (now / 1000) % 60;
-  state.intervalTimer.ghostSeconds = currentSeconds;
+  // Update ghost hand to show where the chosen hand is at this transition
+  const baseSeconds = (now / 1000) % 60;
+  state.intervalTimer.ghostSeconds = (baseSeconds + state.intervalTimer.ghostHandOffset) % 60;
   
   if (state.intervalTimer.phase === 'countdown') {
     // Countdown -> Work
@@ -960,14 +974,15 @@ function toggleIntervalPause() {
   state.intervalTimer.isPaused = !state.intervalTimer.isPaused;
   
   if (state.intervalTimer.isPaused) {
-    // Paused
+    // Paused - freeze the clock
     canvas.classList.remove('glow-green');
     canvas.classList.add('glow-yellow');
     intervalStatus.textContent = 'PAUSED';
     state.intervalTimer.pauseTime = Date.now();
+    state.intervalTimer.frozenClockTime = Date.now();
     
   } else {
-    // Resumed
+    // Resumed - unfreeze the clock
     canvas.classList.remove('glow-yellow');
     canvas.classList.add('glow-green');
     
@@ -975,6 +990,7 @@ function toggleIntervalPause() {
     const pauseDuration = Date.now() - state.intervalTimer.pauseTime;
     state.intervalTimer.intervalStart += pauseDuration;
     state.intervalTimer.sessionStart += pauseDuration;
+    state.intervalTimer.frozenClockTime = null;
     
     // Restore status
     const phase = state.intervalTimer.phase;
@@ -1067,8 +1083,10 @@ function resetSession() {
     state.intervalTimer.isPaused = false;
     state.intervalTimer.ghostSeconds = null;
     state.intervalTimer.ghostColor = null;
+    state.intervalTimer.ghostHandOffset = null;
     state.intervalTimer.lastBeep = null;
     state.intervalTimer.pauseTime = null;
+    state.intervalTimer.frozenClockTime = null;
     
     // Clear UI
     digital.textContent = '00:00.0';
