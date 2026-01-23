@@ -1106,10 +1106,12 @@ document.getElementById('menuSettings').onclick = () => {
 };
 
 // Prevent text selection on buttons and controls
-const canvas = document.getElementById('clock');
 canvas.addEventListener('pointerdown', handleTap);
 
-const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn, configIntervalsBtn, stopIntervalBtn];
+const preventSelectElements = [canvas, resetBtn, saveBtn, toggleRestBtn, menuBtn];
+if (configIntervalsBtn) preventSelectElements.push(configIntervalsBtn);
+if (stopIntervalBtn) preventSelectElements.push(stopIntervalBtn);
+
 preventSelectElements.forEach(el => {
   if (el) {
     el.addEventListener('selectstart', (e) => e.preventDefault());
@@ -1207,6 +1209,49 @@ stopIntervalBtn.onclick = () => {
   }
 };
 
+// Interval reset button (uses same hold mechanism as lap timer reset)
+let resetIntervalHoldTimer = null;
+
+resetIntervalBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  resetIntervalBtn.classList.add('holding');
+  
+  resetIntervalHoldTimer = setTimeout(() => {
+    resetIntervalBtn.classList.remove('holding');
+    resetIntervalBtn.classList.add('reset-complete');
+    resetSession();
+    setTimeout(() => {
+      resetIntervalBtn.classList.remove('reset-complete');
+    }, 500);
+  }, RESET_HOLD_TIME);
+});
+
+resetIntervalBtn.addEventListener('pointerup', (e) => {
+  e.preventDefault();
+  if (resetIntervalHoldTimer) {
+    clearTimeout(resetIntervalHoldTimer);
+    resetIntervalHoldTimer = null;
+  }
+  resetIntervalBtn.classList.remove('holding');
+});
+
+resetIntervalBtn.addEventListener('pointerleave', () => {
+  if (resetIntervalHoldTimer) {
+    clearTimeout(resetIntervalHoldTimer);
+    resetIntervalHoldTimer = null;
+  }
+  resetIntervalBtn.classList.remove('holding');
+});
+
+resetIntervalBtn.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  if (resetIntervalHoldTimer) {
+    clearTimeout(resetIntervalHoldTimer);
+    resetIntervalHoldTimer = null;
+  }
+  resetIntervalBtn.classList.remove('holding');
+});
+
 // Interval config panel
 infiniteRounds.onchange = () => {
   roundsInput.disabled = infiniteRounds.checked;
@@ -1250,6 +1295,9 @@ cancelIntervalConfig.onclick = () => {
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
+
+// Get canvas reference early
+const canvas = document.getElementById('clock');
 
 loadSettings();
 initializeUI();
