@@ -1296,9 +1296,6 @@ cancelIntervalConfig.onclick = () => {
 // INITIALIZATION
 // ============================================================================
 
-// Get canvas reference early
-const canvas = document.getElementById('clock');
-
 loadSettings();
 initializeUI();
 requestWakeLock();
