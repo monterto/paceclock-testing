@@ -524,6 +524,14 @@ canvas:focus-visible {
     min-width: 85px;
     padding: 8px 10px;
   }
+  
+  .interval-status {
+    font-size: 2.25rem;
+  }
+  
+  .interval-status.waiting {
+    font-size: 1rem;
+  }
 }
 
 /* Utility Classes */
@@ -667,19 +675,45 @@ canvas:focus-visible {
   margin-top: 8px;
 }
 
-#intervalStatus {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--accent);
+.interval-status {
+  font-size: 3rem;
+  font-weight: 700;
   text-align: center;
   margin-bottom: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.interval-status.countdown {
+  color: #9aa4b2;
+}
+
+.interval-status.work {
+  color: #4dff88;
+}
+
+.interval-status.rest {
+  color: #4da3ff;
+}
+
+.interval-status.paused {
+  color: #ffd24d;
+}
+
+.interval-status.done {
+  color: #4dff88;
+}
+
+.interval-status.waiting {
+  color: var(--text);
+  font-size: 1.2rem;
 }
 
 #intervalRounds {
   font-size: 0.9rem;
   color: var(--muted);
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .config-summary {
