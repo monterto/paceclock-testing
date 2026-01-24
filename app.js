@@ -937,35 +937,12 @@ function transitionIntervalPhase() {
     state.intervalTimer.lastBeep = null;
     
   } else if (state.intervalTimer.phase === 'work') {
-    // Work -> Rest
-    state.intervalTimer.phase = 'rest';
-    state.intervalTimer.timeRemaining = state.intervalTimer.restTime * 1000;
-    state.intervalTimer.intervalStart = now;
-    intervalStatus.textContent = `REST: ${state.intervalTimer.currentRound}`;
-    intervalStatus.className = 'interval-status rest';
-    canvas.classList.remove('glow-green', 'glow-gray', 'glow-yellow');
-    canvas.classList.add('glow-blue');
-    state.intervalTimer.lastBeep = null;
-    
-  } else if (state.intervalTimer.phase === 'rest') {
-    // Rest -> Next round or finish
+    // Work -> Rest OR Finish (if final round)
     const totalRounds = state.intervalTimer.totalRounds;
+    const isLastRound = totalRounds !== null && state.intervalTimer.currentRound >= totalRounds;
     
-    if (totalRounds === null || state.intervalTimer.currentRound < totalRounds) {
-      // Next round
-      state.intervalTimer.currentRound++;
-      state.intervalTimer.phase = 'work';
-      state.intervalTimer.timeRemaining = state.intervalTimer.workTime * 1000;
-      state.intervalTimer.intervalStart = now;
-      intervalStatus.textContent = `WORK: ${state.intervalTimer.currentRound}`;
-      intervalStatus.className = 'interval-status work';
-      canvas.classList.remove('glow-blue', 'glow-gray', 'glow-yellow');
-      canvas.classList.add('glow-green');
-      state.intervalTimer.lastBeep = null;
-      updateIntervalRounds();
-      
-    } else {
-      // Finish - boxing bell sound (three quick chimes, ~1 second total)
+    if (isLastRound) {
+      // Final work set complete - go straight to finish
       beep(1000, 200);
       setTimeout(() => beep(1000, 200), 400);
       setTimeout(() => beep(1000, 200), 800);
@@ -974,7 +951,30 @@ function transitionIntervalPhase() {
       intervalStatus.textContent = 'DONE!';
       intervalStatus.className = 'interval-status done';
       canvas.classList.remove('glow-green', 'glow-blue', 'glow-yellow', 'glow-gray');
+    } else {
+      // Not last round - proceed to rest
+      state.intervalTimer.phase = 'rest';
+      state.intervalTimer.timeRemaining = state.intervalTimer.restTime * 1000;
+      state.intervalTimer.intervalStart = now;
+      intervalStatus.textContent = `REST: ${state.intervalTimer.currentRound}`;
+      intervalStatus.className = 'interval-status rest';
+      canvas.classList.remove('glow-green', 'glow-gray', 'glow-yellow');
+      canvas.classList.add('glow-blue');
+      state.intervalTimer.lastBeep = null;
     }
+    
+  } else if (state.intervalTimer.phase === 'rest') {
+    // Rest -> Next round work
+    state.intervalTimer.currentRound++;
+    state.intervalTimer.phase = 'work';
+    state.intervalTimer.timeRemaining = state.intervalTimer.workTime * 1000;
+    state.intervalTimer.intervalStart = now;
+    intervalStatus.textContent = `WORK: ${state.intervalTimer.currentRound}`;
+    intervalStatus.className = 'interval-status work';
+    canvas.classList.remove('glow-blue', 'glow-gray', 'glow-yellow');
+    canvas.classList.add('glow-green');
+    state.intervalTimer.lastBeep = null;
+    updateIntervalRounds();
   }
 }
 
