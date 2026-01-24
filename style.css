@@ -134,9 +134,17 @@ canvas.glow-green {
   filter: drop-shadow(0 0 25px rgba(77, 255, 136, 0.6));
 }
 
+canvas.glow-blue {
+  filter: drop-shadow(0 0 25px rgba(77, 163, 255, 0.6));
+}
+
 canvas.glow-yellow {
   filter: drop-shadow(0 0 25px rgba(255, 210, 77, 0.6));
   animation: pulse 1.5s ease-in-out infinite;
+}
+
+canvas.glow-gray {
+  filter: drop-shadow(0 0 25px rgba(154, 164, 178, 0.5));
 }
 
 @keyframes pulse {
