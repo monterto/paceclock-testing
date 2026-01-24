@@ -806,7 +806,7 @@ function updateModeUI() {
     list.classList.remove('hidden');
     intervalTimerControls.classList.add('hidden');
     intervalDisplay.classList.add('hidden');
-    canvas.classList.remove('glow-green', 'glow-yellow');
+    canvas.classList.remove('glow-green', 'glow-blue', 'glow-yellow', 'glow-gray');
     digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
     
   } else if (state.currentMode === 'intervalTimer') {
@@ -875,7 +875,7 @@ function startIntervalTimer() {
   const baseSeconds = (now / 1000) % 60;
   state.intervalTimer.ghostSeconds = (baseSeconds + state.intervalTimer.ghostHandOffset) % 60;
   
-  canvas.classList.add('glow-green');
+  canvas.classList.add('glow-gray');
   intervalStatus.textContent = 'GET READY';
   intervalStatus.className = 'interval-status countdown';
   
@@ -932,6 +932,8 @@ function transitionIntervalPhase() {
     state.intervalTimer.intervalStart = now;
     intervalStatus.textContent = `WORK: ${state.intervalTimer.currentRound}`;
     intervalStatus.className = 'interval-status work';
+    canvas.classList.remove('glow-gray', 'glow-blue', 'glow-yellow');
+    canvas.classList.add('glow-green');
     state.intervalTimer.lastBeep = null;
     
   } else if (state.intervalTimer.phase === 'work') {
@@ -941,6 +943,8 @@ function transitionIntervalPhase() {
     state.intervalTimer.intervalStart = now;
     intervalStatus.textContent = `REST: ${state.intervalTimer.currentRound}`;
     intervalStatus.className = 'interval-status rest';
+    canvas.classList.remove('glow-green', 'glow-gray', 'glow-yellow');
+    canvas.classList.add('glow-blue');
     state.intervalTimer.lastBeep = null;
     
   } else if (state.intervalTimer.phase === 'rest') {
@@ -955,19 +959,21 @@ function transitionIntervalPhase() {
       state.intervalTimer.intervalStart = now;
       intervalStatus.textContent = `WORK: ${state.intervalTimer.currentRound}`;
       intervalStatus.className = 'interval-status work';
+      canvas.classList.remove('glow-blue', 'glow-gray', 'glow-yellow');
+      canvas.classList.add('glow-green');
       state.intervalTimer.lastBeep = null;
       updateIntervalRounds();
       
     } else {
-      // Finish - boxing bell sound (three chimes with proper spacing)
-      beep(850, 350);
-      setTimeout(() => beep(850, 350), 500);
-      setTimeout(() => beep(850, 350), 1000);
+      // Finish - boxing bell sound (three quick chimes, ~1 second total)
+      beep(1000, 200);
+      setTimeout(() => beep(1000, 200), 400);
+      setTimeout(() => beep(1000, 200), 800);
       
       stopIntervalTimer();
       intervalStatus.textContent = 'DONE!';
       intervalStatus.className = 'interval-status done';
-      canvas.classList.remove('glow-green');
+      canvas.classList.remove('glow-green', 'glow-blue', 'glow-yellow', 'glow-gray');
     }
   }
 }
@@ -977,7 +983,7 @@ function toggleIntervalPause() {
   
   if (state.intervalTimer.isPaused) {
     // Paused
-    canvas.classList.remove('glow-green');
+    canvas.classList.remove('glow-green', 'glow-blue', 'glow-gray');
     canvas.classList.add('glow-yellow');
     intervalStatus.textContent = 'PAUSED';
     intervalStatus.className = 'interval-status paused';
@@ -986,24 +992,26 @@ function toggleIntervalPause() {
   } else {
     // Resumed
     canvas.classList.remove('glow-yellow');
-    canvas.classList.add('glow-green');
     
     // Adjust interval start to account for pause duration
     const pauseDuration = Date.now() - state.intervalTimer.pauseTime;
     state.intervalTimer.intervalStart += pauseDuration;
     state.intervalTimer.sessionStart += pauseDuration;
     
-    // Restore status
+    // Restore status and glow based on phase
     const phase = state.intervalTimer.phase;
     if (phase === 'countdown') {
       intervalStatus.textContent = 'GET READY';
       intervalStatus.className = 'interval-status countdown';
+      canvas.classList.add('glow-gray');
     } else if (phase === 'work') {
       intervalStatus.textContent = `WORK: ${state.intervalTimer.currentRound}`;
       intervalStatus.className = 'interval-status work';
+      canvas.classList.add('glow-green');
     } else if (phase === 'rest') {
       intervalStatus.textContent = `REST: ${state.intervalTimer.currentRound}`;
       intervalStatus.className = 'interval-status rest';
+      canvas.classList.add('glow-blue');
     }
   }
 }
@@ -1016,7 +1024,7 @@ function stopIntervalTimer() {
   
   state.intervalTimer.phase = 'waiting';
   state.intervalTimer.isPaused = false;
-  canvas.classList.remove('glow-green', 'glow-yellow');
+  canvas.classList.remove('glow-green', 'glow-blue', 'glow-yellow', 'glow-gray');
   
   // Don't reset the session - keep the completed data
   digital.textContent = '00:00.0';
@@ -1099,7 +1107,7 @@ function resetSession() {
     intervalRounds.textContent = '';
     
     // Remove glow
-    canvas.classList.remove('glow-green', 'glow-yellow');
+    canvas.classList.remove('glow-green', 'glow-blue', 'glow-yellow', 'glow-gray');
   }
 }
 
