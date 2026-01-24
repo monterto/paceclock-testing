@@ -959,10 +959,10 @@ function transitionIntervalPhase() {
       updateIntervalRounds();
       
     } else {
-      // Finish - triple beep like a competition bell
-      beep(1000, 100);
-      setTimeout(() => beep(1000, 100), 150);
-      setTimeout(() => beep(1000, 100), 300);
+      // Finish - boxing bell sound (three chimes with proper spacing)
+      beep(850, 350);
+      setTimeout(() => beep(850, 350), 500);
+      setTimeout(() => beep(850, 350), 1000);
       
       stopIntervalTimer();
       intervalStatus.textContent = 'DONE!';
