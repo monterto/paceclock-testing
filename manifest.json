@@ -1,7 +1,7 @@
 {
-  "name": "Pace Clock",
-  "short_name": "Pace Clock",
-  "id": "com.monterto.paceclock",
+  "name": "Pace Clock - Testing",
+  "short_name": "Clock - Testing",
+  "id": "com.monterto.paceclocktesting",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
