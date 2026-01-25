@@ -15,7 +15,7 @@ const DEFAULT_STATE = {
   display: {
     dark: true,
     ghostHand: true,
-    thickerHands: true
+    handStyle: 'standard' // 'thin', 'standard', 'bold'
   },
   
   // Lap timer state
@@ -79,7 +79,7 @@ function loadSettings() {
       state.lapTimer.trackRest = s.trackRest ?? state.lapTimer.trackRest;
       state.lapTimer.guard = s.guard ?? state.lapTimer.guard;
       state.display.ghostHand = s.ghostHand ?? state.display.ghostHand;
-      state.display.thickerHands = s.thickerHands ?? state.display.thickerHands;
+      state.display.handStyle = s.handStyle ?? state.display.handStyle;
       state.currentMode = s.currentMode ?? state.currentMode;
       
       // Load interval timer settings
@@ -104,7 +104,7 @@ function saveSettings() {
       trackRest: state.lapTimer.trackRest,
       guard: state.lapTimer.guard,
       ghostHand: state.display.ghostHand,
-      thickerHands: state.display.thickerHands,
+      handStyle: state.display.handStyle,
       currentMode: state.currentMode,
       intervalTimer: {
         countdown: state.intervalTimer.countdown,
@@ -317,7 +317,16 @@ function drawClock() {
   // Clock hands - behavior depends on mode
   const base = (Date.now() / 1000) % 60;
   const length = r - 32;
-  const baseWidth = state.display.thickerHands ? 12 : 8;
+  
+  // Hand width based on selected style
+  let baseWidth;
+  if (state.display.handStyle === 'thin') {
+    baseWidth = 6;
+  } else if (state.display.handStyle === 'bold') {
+    baseWidth = 12;
+  } else {
+    baseWidth = 8; // standard
+  }
 
   if (state.currentMode === 'lapTimer') {
     // Draw lap timer ghost hand FIRST (behind regular hands)
@@ -624,13 +633,14 @@ function handleIntervalTimerTap() {
 // UI ELEMENTS - Will be initialized after DOM loads
 // ============================================================================
 
-let canvas, digital, totalClock, list, toggleRestBtn, ghostToggle, thickerHandsToggle;
+let canvas, digital, totalClock, list, toggleRestBtn, ghostToggle;
 let guardToggle, darkToggle, menuBtn, resetBtn, saveBtn, options, menu;
 let lapTimerControls, intervalTimerControls, intervalDisplay, intervalStatus, intervalRounds;
 let configIntervalsBtn, stopIntervalBtn, intervalConfigPanel;
 let countdownInput, workInput, restInput, roundsInput, infiniteRounds, beepEnabled;
 let volumeSlider, volumeValue, saveIntervalConfig, cancelIntervalConfig, menuOverlay;
 let summaryCountdown, summaryWork, summaryRest, summaryRounds;
+let handStyleRadios;
 
 // ============================================================================
 // INITIALIZATION
@@ -644,7 +654,6 @@ function initializeDOM() {
   list = document.getElementById('list');
   toggleRestBtn = document.getElementById('toggleRestBtn');
   ghostToggle = document.getElementById('ghostToggle');
-  thickerHandsToggle = document.getElementById('thickerHandsToggle');
   guardToggle = document.getElementById('guardToggle');
   darkToggle = document.getElementById('darkToggle');
   menuBtn = document.getElementById('menuBtn');
@@ -652,6 +661,9 @@ function initializeDOM() {
   saveBtn = document.getElementById('saveBtn');
   options = document.getElementById('options');
   menu = document.getElementById('menu');
+  
+  // Get hand style radio buttons
+  handStyleRadios = document.querySelectorAll('input[name="handStyle"]');
   
   // Lap timer elements
   lapTimerControls = document.getElementById('lapTimerControls');
@@ -690,8 +702,14 @@ function initializeUI() {
   toggleRestBtn.textContent = state.lapTimer.trackRest ? 'Rest ☑' : 'Rest ☐';
   digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
   ghostToggle.checked = state.display.ghostHand;
-  thickerHandsToggle.checked = state.display.thickerHands;
   guardToggle.checked = state.lapTimer.guard;
+  
+  // Set the correct hand style radio button
+  handStyleRadios.forEach(radio => {
+    if (radio.value === state.display.handStyle) {
+      radio.checked = true;
+    }
+  });
   
   // Initialize interval config inputs
   countdownInput.value = state.intervalTimer.countdown;
@@ -1315,11 +1333,13 @@ function setupEventListeners() {
     saveSettings();
   };
 
-  // Thicker hands toggle
-  thickerHandsToggle.onchange = () => {
-    state.display.thickerHands = thickerHandsToggle.checked;
-    saveSettings();
-  };
+  // Hand style radio buttons
+  handStyleRadios.forEach(radio => {
+    radio.onchange = () => {
+      state.display.handStyle = radio.value;
+      saveSettings();
+    };
+  });
 
   // Guard toggle
   guardToggle.onchange = e => {
