@@ -273,8 +273,8 @@ function drawClock() {
   
   try {
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 480, 480);
-    const cx = 240, cy = 240, r = 216;
+    ctx.clearRect(0, 0, 540, 540);
+    const cx = 270, cy = 270, r = 243;
     
     drawCount++;
     if (drawCount === 1) {
@@ -288,7 +288,7 @@ function drawClock() {
   ctx.fill();
 
   // Border
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 5;
   ctx.strokeStyle = state.display.dark ? '#444' : '#111';
   ctx.stroke();
 
@@ -296,28 +296,28 @@ function drawClock() {
   for (let i = 0; i < 60; i++) {
     const a = i * Math.PI / 30 - Math.PI / 2;
     const isMajor = i % 5 === 0;
-    ctx.lineWidth = isMajor ? 3 : 1;
+    ctx.lineWidth = isMajor ? 4 : 2;
     ctx.strokeStyle = state.display.dark ? '#555' : '#111';
     ctx.beginPath();
     ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    ctx.lineTo(cx + Math.cos(a) * (r - (isMajor ? 28 : 14)), cy + Math.sin(a) * (r - (isMajor ? 28 : 14)));
+    ctx.lineTo(cx + Math.cos(a) * (r - (isMajor ? 32 : 16)), cy + Math.sin(a) * (r - (isMajor ? 32 : 16)));
     ctx.stroke();
   }
 
   // Numbers
   ctx.fillStyle = state.display.dark ? '#9aa4b2' : '#000';
-  ctx.font = 'bold 28px system-ui';
+  ctx.font = 'bold 32px system-ui';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (let n = 5; n <= 60; n += 5) {
     const a = n * Math.PI / 30 - Math.PI / 2;
-    ctx.fillText(n, cx + Math.cos(a) * (r - 52), cy + Math.sin(a) * (r - 52));
+    ctx.fillText(n, cx + Math.cos(a) * (r - 58), cy + Math.sin(a) * (r - 58));
   }
 
   // Clock hands - behavior depends on mode
   const base = (Date.now() / 1000) % 60;
-  const length = r - 28;
-  const baseWidth = state.display.thickerHands ? 9 : 6;
+  const length = r - 32;
+  const baseWidth = state.display.thickerHands ? 12 : 8;
 
   if (state.currentMode === 'lapTimer') {
     // Draw lap timer ghost hand FIRST (behind regular hands)
@@ -327,19 +327,19 @@ function drawClock() {
       
       // Subtle outline for better visibility
       ctx.strokeStyle = state.display.dark ? '#888' : '#000';
-      ctx.lineWidth = 10;
+      ctx.lineWidth = 13;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
+      ctx.lineTo(cx + Math.cos(a) * (r - 32), cy + Math.sin(a) * (r - 32));
       ctx.stroke();
       
       // Colored ghost hand
       ctx.strokeStyle = state.lapTimer.ghost.color;
-      ctx.lineWidth = 8;
+      ctx.lineWidth = 11;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
+      ctx.lineTo(cx + Math.cos(a) * (r - 32), cy + Math.sin(a) * (r - 32));
       ctx.stroke();
       
       ctx.globalAlpha = 1;
@@ -376,19 +376,19 @@ function drawClock() {
       
       // Subtle outline for better visibility
       ctx.strokeStyle = state.display.dark ? '#888' : '#000';
-      ctx.lineWidth = 12;
+      ctx.lineWidth = 15;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
+      ctx.lineTo(cx + Math.cos(a) * (r - 32), cy + Math.sin(a) * (r - 32));
       ctx.stroke();
       
       // Colored ghost hand (uses the color from session start)
       ctx.strokeStyle = state.intervalTimer.ghostColor;
-      ctx.lineWidth = 10;
+      ctx.lineWidth = 13;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
+      ctx.lineTo(cx + Math.cos(a) * (r - 32), cy + Math.sin(a) * (r - 32));
       ctx.stroke();
       
       ctx.globalAlpha = 1;
@@ -421,7 +421,7 @@ function drawClock() {
   // Center dot
   ctx.fillStyle = state.display.dark ? '#777' : '#000';
   ctx.beginPath();
-  ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 10, 0, Math.PI * 2);
   ctx.fill();
   
   } catch (err) {
