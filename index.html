@@ -1,82 +1,235 @@
-<div id="menuOverlay" class="menu-overlay" aria-hidden="true">
-  <div class="settings-panel">
-    
-    <div class="settings-header">
-      <h2>Settings</h2>
-      <button id="closeMenuBtn" aria-label="Close menu">✕</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0b0f14">
+  <meta name="description" content="Precision analog lap timer for swim coaches and athletes">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Precision Lap Timer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="menu" class="slide-menu" aria-hidden="true">
+    <div class="menu-header">
+      <h2>Menu</h2>
+      <button class="menu-close" aria-label="Close menu">✕</button>
     </div>
-
-    <div class="settings-content">
+    <div class="menu-content">
+      <div class="menu-section">
+        <h3>Mode</h3>
+        <button class="menu-item mode-item active" data-mode="lapTimer">
+          <span class="mode-icon">⏱</span>
+          Lap Timer
+          <span class="mode-check">✓</span>
+        </button>
+        <button class="menu-item mode-item" data-mode="intervalTimer">
+          <span class="mode-icon">⚡</span>
+          Interval Timer
+          <span class="mode-check"></span>
+        </button>
+      </div>
       
-      <div class="config-section">
-        <h3>Hand Style</h3>
+      <div class="menu-divider"></div>
+      
+      <button id="menuSettings" class="menu-item">
+        <span class="menu-icon">⚙</span>
+        Settings
+      </button>
+      
+      <div class="menu-footer">
+        <p>Version 2.0.0</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="menuOverlay" class="menu-overlay" aria-hidden="true">
+    <div class="settings-panel">
+      
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button id="closeMenuBtn" aria-label="Close menu">✕</button>
+      </div>
+
+      <div class="settings-content">
         
-        <div class="hand-style-grid">
-          <button class="style-btn active" data-style="standard">Standard</button>
-          <button class="style-btn" data-style="bold">Bold</button>
-          <button class="style-btn" data-style="thin">Thin</button>
-          <button class="style-btn" data-style="tapered">Tapered</button>
-          <button class="style-btn" data-style="diamond">Diamond</button>
+        <div class="config-section">
+          <h3>Hand Style</h3>
+          <div class="hand-style-grid">
+            <button class="style-btn active" data-style="standard">Standard</button>
+            <button class="style-btn" data-style="bold">Bold</button>
+            <button class="style-btn" data-style="thin">Thin</button>
+            <button class="style-btn" data-style="tapered">Tapered</button>
+            <button class="style-btn" data-style="diamond">Diamond</button>
+          </div>
+
+          <label class="checkbox-label" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+            <input type="checkbox" id="singleHandToggle">
+            Single Red Hand Mode
+          </label>
         </div>
 
-        <label class="checkbox-label" style="margin-top: 15px;">
-          <input type="checkbox" id="singleHandToggle">
-          Single Red Hand
-        </label>
-      </div>
-
-      <div class="config-section">
-        <h3>Display</h3>
-        <label class="checkbox-label">
-          <input type="checkbox" id="darkModeToggle" checked>
-          Dark Mode
-        </label>
-        <label class="checkbox-label">
-          <input type="checkbox" id="ghostHandToggle" checked>
-          Show Ghost Hand (Last Lap)
-        </label>
-      </div>
-
-      <div class="config-section" id="intervalConfigSection">
-        <h3>Interval Timer</h3>
-        <div class="config-group">
-          <label for="countdownInput">Countdown (sec)</label>
-          <input type="number" id="countdownInput" min="0" max="60" value="5">
-        </div>
-        <div class="config-group">
-          <label for="workInput">Work Time (sec)</label>
-          <input type="number" id="workInput" min="1" max="3600" value="60">
-        </div>
-        <div class="config-group">
-          <label for="restInput">Rest Time (sec)</label>
-          <input type="number" id="restInput" min="0" max="3600" value="60">
-        </div>
-        <div class="config-group">
-          <label for="roundsInput">Total Rounds</label>
-          <div class="input-group">
-            <input type="number" id="roundsInput" min="1" max="999" value="">
-            <label class="checkbox-label">
-              <input type="checkbox" id="infiniteRounds" checked>
-              Infinite
+        <div class="config-section" id="handWidthSection">
+          <h3>Hand Width</h3>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="handWidth" value="thin">
+              Thin
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="handWidth" value="standard" checked>
+              Standard
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="handWidth" value="bold">
+              Bold
             </label>
           </div>
         </div>
-        <div class="config-group">
-          <label>Sound</label>
+
+        <div class="config-section">
+          <h3>Display</h3>
           <label class="checkbox-label">
-            <input type="checkbox" id="beepEnabled" checked>
-            Enable beeps
+            <input type="checkbox" id="darkModeToggle" checked>
+            Dark Mode
           </label>
-          <div class="volume-control">
-            <label for="volumeSlider">Volume</label>
-            <input type="range" id="volumeSlider" min="0" max="100" value="70">
-            <span id="volumeValue">70%</span>
-          </div>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ghostHandToggle" checked>
+            Show Ghost Hand
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="guardToggle" checked>
+            Double-Tap Guard (1s)
+          </label>
         </div>
+
         <div class="config-buttons">
-          <button id="saveIntervalConfig" class="primary-btn">Save Timer Settings</button>
+          <button id="closeSettings" class="secondary-btn" style="width: 100%;">Close Settings</button>
+        </div>
+      
+      </div> </div>
+  </div>
+
+  <div id="intervalConfigPanel" class="config-panel" aria-hidden="true">
+    <h3>Configure Interval</h3>
+    
+    <div class="config-group">
+      <label for="countdownInput">Countdown (sec)</label>
+      <input type="number" id="countdownInput" min="0" max="60" value="5">
+    </div>
+    
+    <div class="config-group">
+      <label for="workInput">Work Time (sec)</label>
+      <input type="number" id="workInput" min="1" max="3600" value="60">
+    </div>
+    
+    <div class="config-group">
+      <label for="restInput">Rest Time (sec)</label>
+      <input type="number" id="restInput" min="0" max="3600" value="60">
+    </div>
+    
+    <div class="config-group">
+      <label for="roundsInput">Total Rounds</label>
+      <div class="input-group">
+        <input type="number" id="roundsInput" min="1" max="999" value="">
+        <label class="checkbox-label">
+          <input type="checkbox" id="infiniteRounds" checked>
+          Infinite
+        </label>
+      </div>
+    </div>
+    
+    <div class="config-group">
+      <label>Sound</label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="beepEnabled" checked>
+        Enable beeps
+      </label>
+      <div class="volume-control">
+        <label for="volumeSlider">Volume</label>
+        <input type="range" id="volumeSlider" min="0" max="100" value="70">
+        <span id="volumeValue">70%</span>
+      </div>
+    </div>
+    
+    <div class="config-buttons">
+      <button id="cancelIntervalConfig" class="secondary-btn">Cancel</button>
+      <button id="saveIntervalConfig" class="primary-btn">Save & Ready</button>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <header class="top-bar">
+      <button id="menuBtn" class="icon-btn" aria-label="Menu">
+        <span class="hamburger"></span>
+      </button>
+      <div class="mode-title">
+        <span id="totalClock">00:00.0</span>
+      </div>
+      <div class="right-controls">
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="ghostToggle" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Ghost</span>
+        </label>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="darkToggle" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Dark</span>
+        </label>
+      </div>
+    </header>
+
+    <main id="clock-container">
+      <canvas id="clock" width="540" height="540"></canvas>
+      <div id="digital">00:00.0</div>
+      
+      <div id="intervalDisplay" class="hidden">
+        <div id="intervalStatus" class="interval-status waiting">TAP TO START</div>
+        <div id="intervalRounds" class="interval-rounds"></div>
+        <div class="interval-summary">
+          <span>Countdown: <b id="summaryCountdown">5s</b></span>
+          <span>Work: <b id="summaryWork">60s</b></span>
+          <span>Rest: <b id="summaryRest">60s</b></span>
+          <span>Rounds: <b id="summaryRounds">∞</b></span>
         </div>
       </div>
-    
-    </div> </div>
-</div>
+    </main>
+
+    <div id="controls">
+      <div id="lapTimerControls" class="control-group">
+        <button id="resetBtn" class="control-btn reset">
+          Hold Reset
+          <div class="hold-progress"></div>
+        </button>
+        <button id="toggleRestBtn" class="control-btn toggle">Rest ☑</button>
+        <button id="saveBtn" class="control-btn save">
+          Hold Save
+          <div class="hold-progress"></div>
+        </button>
+      </div>
+      
+      <div id="intervalTimerControls" class="control-group hidden">
+        <button id="configIntervalsBtn" class="control-btn config">Configure</button>
+        <button id="stopIntervalBtn" class="control-btn stop">Stop</button>
+      </div>
+    </div>
+
+    <div id="list" class="lap-list">
+      </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(reg => console.log('Service Worker registered', reg))
+          .catch(err => console.log('Service Worker registration failed', err));
+      });
+    }
+  </script>
+</body>
+</html>
