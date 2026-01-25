@@ -1202,27 +1202,27 @@ function setupEventListeners() {
   };
 
   menuOverlay.onclick = () => {
-    menu.classList.remove('open');
-    options.classList.remove('open');
-    intervalConfigPanel.classList.remove('open');
-    menuOverlay.classList.remove('visible');
+    // Only close menu, not options or interval config (they handle their own overlay clicks)
+    if (menu.classList.contains('open')) {
+      menu.classList.remove('open');
+      menuOverlay.classList.remove('visible');
+    } else if (options.classList.contains('open')) {
+      options.classList.remove('open');
+      menuOverlay.classList.remove('visible');
+    } else if (intervalConfigPanel.classList.contains('open')) {
+      intervalConfigPanel.classList.remove('open');
+      menuOverlay.classList.remove('visible');
+    }
   };
 
-  // Close options panel when clicking outside
+  // Prevent clicks inside options panel from closing it
   options.addEventListener('click', (e) => {
-    // Prevent clicks inside the panel from closing it
     e.stopPropagation();
   });
 
-  document.addEventListener('click', (e) => {
-    // Close options if clicking outside when it's open
-    if (options.classList.contains('open') && !options.contains(e.target)) {
-      // Check if the click wasn't on the settings button
-      if (!document.getElementById('menuSettings').contains(e.target)) {
-        options.classList.remove('open');
-        menuOverlay.classList.remove('visible');
-      }
-    }
+  // Prevent clicks inside interval config panel from closing it
+  intervalConfigPanel.addEventListener('click', (e) => {
+    e.stopPropagation();
   });
 
   // Mode switching
