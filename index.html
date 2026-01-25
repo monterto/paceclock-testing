@@ -128,12 +128,23 @@ You may not use this software for commercial purposes.
       <span id="ghostDesc" class="sr-only">Display ghost hand showing previous lap position</span>
       <br><br>
       
-      <label>
-        <input type="checkbox" id="thickerHandsToggle" checked aria-describedby="thickerDesc">
-        Thicker Hands
-      </label>
-      <span id="thickerDesc" class="sr-only">Make clock hands thicker for better visibility</span>
-      <br><br>
+      <div class="hand-style-section">
+        <p class="hand-style-label">Clock Hand Style</p>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="handStyle" value="thin">
+            <span class="radio-label">Thin</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="handStyle" value="standard" checked>
+            <span class="radio-label">Standard</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="handStyle" value="bold">
+            <span class="radio-label">Bold</span>
+          </label>
+        </div>
+      </div>
     </div>
 
     <div class="settings-section" id="lapTimerSettings">
