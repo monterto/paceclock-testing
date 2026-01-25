@@ -317,7 +317,7 @@ function drawClock() {
   // Clock hands - behavior depends on mode
   const base = (Date.now() / 1000) % 60;
   const length = r - 28;
-  const baseWidth = state.display.thickerHands ? 6 : 3;
+  const baseWidth = state.display.thickerHands ? 9 : 6;
 
   if (state.currentMode === 'lapTimer') {
     // Draw lap timer ghost hand FIRST (behind regular hands)
@@ -327,7 +327,7 @@ function drawClock() {
       
       // Subtle outline for better visibility
       ctx.strokeStyle = state.display.dark ? '#888' : '#000';
-      ctx.lineWidth = 8;
+      ctx.lineWidth = 10;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(cx, cy);
@@ -336,7 +336,7 @@ function drawClock() {
       
       // Colored ghost hand
       ctx.strokeStyle = state.lapTimer.ghost.color;
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 8;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
@@ -376,7 +376,7 @@ function drawClock() {
       
       // Subtle outline for better visibility
       ctx.strokeStyle = state.display.dark ? '#888' : '#000';
-      ctx.lineWidth = 10;
+      ctx.lineWidth = 12;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(cx, cy);
@@ -385,7 +385,7 @@ function drawClock() {
       
       // Colored ghost hand (uses the color from session start)
       ctx.strokeStyle = state.intervalTimer.ghostColor;
-      ctx.lineWidth = 8;
+      ctx.lineWidth = 10;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(a) * (r - 28), cy + Math.sin(a) * (r - 28));
@@ -1203,10 +1203,27 @@ function setupEventListeners() {
 
   menuOverlay.onclick = () => {
     menu.classList.remove('open');
-    menuOverlay.classList.remove('visible');
     options.classList.remove('open');
     intervalConfigPanel.classList.remove('open');
+    menuOverlay.classList.remove('visible');
   };
+
+  // Close options panel when clicking outside
+  options.addEventListener('click', (e) => {
+    // Prevent clicks inside the panel from closing it
+    e.stopPropagation();
+  });
+
+  document.addEventListener('click', (e) => {
+    // Close options if clicking outside when it's open
+    if (options.classList.contains('open') && !options.contains(e.target)) {
+      // Check if the click wasn't on the settings button
+      if (!document.getElementById('menuSettings').contains(e.target)) {
+        options.classList.remove('open');
+        menuOverlay.classList.remove('visible');
+      }
+    }
+  });
 
   // Mode switching
   document.querySelectorAll('.mode-item').forEach(item => {
@@ -1219,8 +1236,14 @@ function setupEventListeners() {
   // Settings from menu
   document.getElementById('menuSettings').onclick = () => {
     menu.classList.remove('open');
-    menuOverlay.classList.remove('visible');
+    menuOverlay.classList.add('visible');
     options.classList.add('open');
+  };
+
+  // Close settings button
+  document.getElementById('closeSettings').onclick = () => {
+    options.classList.remove('open');
+    menuOverlay.classList.remove('visible');
   };
 
   // Canvas tap and text selection prevention
@@ -1356,6 +1379,7 @@ function setupEventListeners() {
   // Interval timer controls
   configIntervalsBtn.onclick = () => {
     intervalConfigPanel.classList.add('open');
+    menuOverlay.classList.add('visible');
   };
 
   stopIntervalBtn.onclick = () => {
@@ -1388,6 +1412,7 @@ function setupEventListeners() {
     updateIntervalSummary();
     saveSettings();
     intervalConfigPanel.classList.remove('open');
+    menuOverlay.classList.remove('visible');
   };
 
   cancelIntervalConfig.onclick = () => {
@@ -1402,5 +1427,6 @@ function setupEventListeners() {
     volumeValue.textContent = `${state.intervalTimer.volume}%`;
     
     intervalConfigPanel.classList.remove('open');
+    menuOverlay.classList.remove('visible');
   };
 }
