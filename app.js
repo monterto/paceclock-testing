@@ -273,8 +273,8 @@ function drawClock() {
   
   try {
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 360, 360);
-    const cx = 180, cy = 180, r = 162;
+    ctx.clearRect(0, 0, 480, 480);
+    const cx = 240, cy = 240, r = 216;
     
     drawCount++;
     if (drawCount === 1) {
@@ -482,7 +482,7 @@ function calculateGhostHand(now) {
 // ============================================================================
 
 const MIN_PRESS = 1000;
-const RESET_HOLD_TIME = 1500; // 1.5 seconds - fast enough for intentional, slow enough to prevent accidents
+const RESET_HOLD_TIME = 800; // 0.8 seconds - fast enough to prevent accidents
 let digitalTimerInterval = null;
 
 function startDigitalTimer() {
