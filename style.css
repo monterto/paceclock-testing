@@ -33,10 +33,10 @@ body {
 .app {
   max-width: 420px;
   margin: auto;
-  padding: 12px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-height: 100vh;
 }
 
@@ -45,8 +45,8 @@ header {
   display: flex;
   justify-content: flex-end;
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 8px;
+  right: 8px;
   z-index: 10;
 }
 
@@ -87,7 +87,7 @@ header {
 
 #digital {
   text-align: center;
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--text);
@@ -218,7 +218,7 @@ canvas.glow-gray {
   width: 0;
   height: 100%;
   background: linear-gradient(90deg, rgba(77, 163, 255, 0.3), rgba(77, 163, 255, 0.5));
-  animation: resetProgress 1.5s linear forwards;
+  animation: resetProgress 0.8s linear forwards;
   z-index: 0;
 }
 
@@ -241,7 +241,7 @@ canvas.glow-gray {
   width: 0;
   height: 100%;
   background: linear-gradient(90deg, rgba(255, 77, 77, 0.3), rgba(255, 77, 77, 0.5));
-  animation: resetProgress 1.5s linear forwards;
+  animation: resetProgress 0.8s linear forwards;
   z-index: 0;
 }
 
@@ -511,7 +511,7 @@ canvas:focus-visible {
 /* Responsive */
 @media (max-width: 375px) {
   #digital {
-    font-size: 1.75rem;
+    font-size: 2rem;
   }
 
   #saveBtn,
