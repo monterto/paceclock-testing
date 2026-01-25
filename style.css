@@ -436,6 +436,12 @@ canvas.glow-gray {
   gap: 8px;
 }
 
+.radio-group-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .radio-option {
   flex: 1;
   display: flex;
@@ -450,7 +456,21 @@ canvas.glow-gray {
   transition: var(--transition);
 }
 
-.radio-option:hover {
+.radio-option-horizontal {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 12px 16px;
+  background: #1a2133;
+  border: 2px solid #1a2133;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  gap: 12px;
+}
+
+.radio-option:hover,
+.radio-option-horizontal:hover {
   background: #242d42;
   border-color: #242d42;
 }
@@ -463,12 +483,23 @@ canvas.glow-gray {
   accent-color: var(--accent);
 }
 
-.radio-option input[type="radio"]:checked ~ .radio-label {
+.radio-option-horizontal input[type="radio"] {
+  margin: 0;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.radio-option input[type="radio"]:checked ~ .radio-label,
+.radio-option-horizontal input[type="radio"]:checked ~ .radio-label {
   color: var(--accent);
   font-weight: 600;
 }
 
-.radio-option:has(input[type="radio"]:checked) {
+.radio-option:has(input[type="radio"]:checked),
+.radio-option-horizontal:has(input[type="radio"]:checked) {
   background: #242d42;
   border-color: var(--accent);
 }
@@ -478,6 +509,7 @@ canvas.glow-gray {
   color: var(--text);
   transition: var(--transition);
   text-align: center;
+  flex: 1;
 }
 
 #options button {
