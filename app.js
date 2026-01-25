@@ -15,7 +15,8 @@ const DEFAULT_STATE = {
   display: {
     dark: true,
     ghostHand: true,
-    handStyle: 'standard' // 'thin', 'standard', 'bold'
+    handStyle: 'standard', // 'thin', 'standard', 'bold', 'tapered', 'diamond', 'single'
+    handWidth: 'standard' // Only used for straight/tapered/diamond: 'thin', 'standard', 'bold'
   },
   
   // Lap timer state
@@ -80,6 +81,7 @@ function loadSettings() {
       state.lapTimer.guard = s.guard ?? state.lapTimer.guard;
       state.display.ghostHand = s.ghostHand ?? state.display.ghostHand;
       state.display.handStyle = s.handStyle ?? state.display.handStyle;
+      state.display.handWidth = s.handWidth ?? state.display.handWidth;
       state.currentMode = s.currentMode ?? state.currentMode;
       
       // Load interval timer settings
@@ -105,6 +107,7 @@ function saveSettings() {
       guard: state.lapTimer.guard,
       ghostHand: state.display.ghostHand,
       handStyle: state.display.handStyle,
+      handWidth: state.display.handWidth,
       currentMode: state.currentMode,
       intervalTimer: {
         countdown: state.intervalTimer.countdown,
@@ -258,6 +261,163 @@ function fmt(ms) {
 }
 
 // ============================================================================
+// HAND DRAWING FUNCTIONS
+// ============================================================================
+
+function getHandWidth() {
+  if (state.display.handWidth === 'thin') return 6;
+  if (state.display.handWidth === 'bold') return 12;
+  return 8; // standard
+}
+
+function drawStraightHand(ctx, cx, cy, angle, length, color, width) {
+  // Outline
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = width + 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(angle) * length, cy + Math.sin(angle) * length);
+  ctx.stroke();
+
+  // Colored hand
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(angle) * length, cy + Math.sin(angle) * length);
+  ctx.stroke();
+}
+
+function drawTaperedHand(ctx, cx, cy, angle, length, color, baseWidth) {
+  const tipWidth = baseWidth * 0.2; // Taper to 20% of base width
+  
+  // Calculate perpendicular angle for width
+  const perpAngle = angle + Math.PI / 2;
+  
+  // Base points (at center)
+  const baseLeft = {
+    x: cx + Math.cos(perpAngle) * (baseWidth / 2),
+    y: cy + Math.sin(perpAngle) * (baseWidth / 2)
+  };
+  const baseRight = {
+    x: cx - Math.cos(perpAngle) * (baseWidth / 2),
+    y: cy - Math.sin(perpAngle) * (baseWidth / 2)
+  };
+  
+  // Tip points (at end)
+  const tipX = cx + Math.cos(angle) * length;
+  const tipY = cy + Math.sin(angle) * length;
+  const tipLeft = {
+    x: tipX + Math.cos(perpAngle) * (tipWidth / 2),
+    y: tipY + Math.sin(perpAngle) * (tipWidth / 2)
+  };
+  const tipRight = {
+    x: tipX - Math.cos(perpAngle) * (tipWidth / 2),
+    y: tipY - Math.sin(perpAngle) * (tipWidth / 2)
+  };
+  
+  // Draw outline
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.moveTo(baseLeft.x + Math.cos(perpAngle) * 1, baseLeft.y + Math.sin(perpAngle) * 1);
+  ctx.lineTo(tipLeft.x + Math.cos(perpAngle) * 1, tipLeft.y + Math.sin(perpAngle) * 1);
+  ctx.lineTo(tipRight.x - Math.cos(perpAngle) * 1, tipRight.y - Math.sin(perpAngle) * 1);
+  ctx.lineTo(baseRight.x - Math.cos(perpAngle) * 1, baseRight.y - Math.sin(perpAngle) * 1);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Draw colored hand
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(baseLeft.x, baseLeft.y);
+  ctx.lineTo(tipLeft.x, tipLeft.y);
+  ctx.lineTo(tipRight.x, tipRight.y);
+  ctx.lineTo(baseRight.x, baseRight.y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawDiamondHand(ctx, cx, cy, angle, length, color, width) {
+  // Draw straight line for most of the hand
+  const lineLength = length - width * 2;
+  
+  // Outline for line
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = width + 2;
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(angle) * lineLength, cy + Math.sin(angle) * lineLength);
+  ctx.stroke();
+  
+  // Colored line
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(angle) * lineLength, cy + Math.sin(angle) * lineLength);
+  ctx.stroke();
+  
+  // Diamond tip
+  const diamondStart = lineLength;
+  const diamondSize = width * 2;
+  const diamondCenter = {
+    x: cx + Math.cos(angle) * (diamondStart + diamondSize / 2),
+    y: cy + Math.sin(angle) * (diamondStart + diamondSize / 2)
+  };
+  const perpAngle = angle + Math.PI / 2;
+  
+  // Diamond points
+  const tip = {
+    x: cx + Math.cos(angle) * length,
+    y: cy + Math.sin(angle) * length
+  };
+  const left = {
+    x: diamondCenter.x + Math.cos(perpAngle) * (width / 2),
+    y: diamondCenter.y + Math.sin(perpAngle) * (width / 2)
+  };
+  const right = {
+    x: diamondCenter.x - Math.cos(perpAngle) * (width / 2),
+    y: diamondCenter.y - Math.sin(perpAngle) * (width / 2)
+  };
+  const base = {
+    x: cx + Math.cos(angle) * diamondStart,
+    y: cy + Math.sin(angle) * diamondStart
+  };
+  
+  // Draw diamond outline
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.moveTo(tip.x, tip.y);
+  ctx.lineTo(left.x + Math.cos(perpAngle) * 1, left.y + Math.sin(perpAngle) * 1);
+  ctx.lineTo(base.x, base.y);
+  ctx.lineTo(right.x - Math.cos(perpAngle) * 1, right.y - Math.sin(perpAngle) * 1);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Draw colored diamond
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(tip.x, tip.y);
+  ctx.lineTo(left.x, left.y);
+  ctx.lineTo(base.x, base.y);
+  ctx.lineTo(right.x, right.y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawHand(ctx, cx, cy, angle, length, color, width, style) {
+  if (style === 'tapered') {
+    drawTaperedHand(ctx, cx, cy, angle, length, color, width);
+  } else if (style === 'diamond') {
+    drawDiamondHand(ctx, cx, cy, angle, length, color, width);
+  } else {
+    drawStraightHand(ctx, cx, cy, angle, length, color, width);
+  }
+}
+
+// ============================================================================
 // CLOCK RENDERING
 // ============================================================================
 
@@ -317,16 +477,9 @@ function drawClock() {
   // Clock hands - behavior depends on mode
   const base = (Date.now() / 1000) % 60;
   const length = r - 32;
-  
-  // Hand width based on selected style
-  let baseWidth;
-  if (state.display.handStyle === 'thin') {
-    baseWidth = 6;
-  } else if (state.display.handStyle === 'bold') {
-    baseWidth = 12;
-  } else {
-    baseWidth = 8; // standard
-  }
+  const baseWidth = getHandWidth();
+  const currentStyle = state.display.handStyle;
+  const isSingleMode = currentStyle === 'single';
 
   if (state.currentMode === 'lapTimer') {
     // Draw lap timer ghost hand FIRST (behind regular hands)
@@ -334,47 +487,35 @@ function drawClock() {
       const a = state.lapTimer.ghost.seconds * Math.PI / 30 - Math.PI / 2;
       ctx.globalAlpha = 0.5;
       
-      // Subtle outline for better visibility
+      // Ghost hand uses same style as regular hands
+      const ghostStyle = isSingleMode ? 'straight' : currentStyle;
+      const ghostWidth = isSingleMode ? 8 : baseWidth;
+      
+      // Outline
       ctx.strokeStyle = state.display.dark ? '#888' : '#000';
-      ctx.lineWidth = 13;
+      ctx.lineWidth = ghostWidth + 3;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 32), cy + Math.sin(a) * (r - 32));
+      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
       ctx.stroke();
       
-      // Colored ghost hand
-      ctx.strokeStyle = state.lapTimer.ghost.color;
-      ctx.lineWidth = 11;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 32), cy + Math.sin(a) * (r - 32));
-      ctx.stroke();
+      // Draw ghost hand
+      drawHand(ctx, cx, cy, a, length, state.lapTimer.ghost.color, ghostWidth, ghostStyle);
       
       ctx.globalAlpha = 1;
     }
     
-    // Lap timer: show all 4 hands
-    state.lapTimer.hands.forEach(h => {
+    // Lap timer: show hands (all 4 or just red in single mode)
+    const handsToShow = isSingleMode 
+      ? state.lapTimer.hands.filter(h => h.offset === 0) // Only red hand
+      : state.lapTimer.hands; // All hands
+    
+    handsToShow.forEach(h => {
       const s = (base + h.offset) % 60;
       const a = s * Math.PI / 30 - Math.PI / 2;
-
-      // Outline
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = baseWidth + 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
-      ctx.stroke();
-
-      // Colored hand
-      ctx.strokeStyle = h.color;
-      ctx.lineWidth = baseWidth;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
-      ctx.stroke();
+      
+      drawHand(ctx, cx, cy, a, length, h.color, baseWidth, currentStyle);
     });
 
   } else if (state.currentMode === 'intervalTimer') {
@@ -383,47 +524,34 @@ function drawClock() {
       const a = state.intervalTimer.ghostSeconds * Math.PI / 30 - Math.PI / 2;
       ctx.globalAlpha = 0.5;
       
-      // Subtle outline for better visibility
+      const ghostStyle = isSingleMode ? 'standard' : currentStyle;
+      const ghostWidth = isSingleMode ? 10 : baseWidth * 1.3;
+      
+      // Outline
       ctx.strokeStyle = state.display.dark ? '#888' : '#000';
-      ctx.lineWidth = 15;
+      ctx.lineWidth = ghostWidth + 3;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 32), cy + Math.sin(a) * (r - 32));
+      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
       ctx.stroke();
       
-      // Colored ghost hand (uses the color from session start)
-      ctx.strokeStyle = state.intervalTimer.ghostColor;
-      ctx.lineWidth = 13;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * (r - 32), cy + Math.sin(a) * (r - 32));
-      ctx.stroke();
+      // Draw ghost hand
+      drawHand(ctx, cx, cy, a, length, state.intervalTimer.ghostColor, ghostWidth, ghostStyle);
       
       ctx.globalAlpha = 1;
     }
     
-    // Interval timer: show all 4 hands continuously
-    state.lapTimer.hands.forEach(h => {
+    // Interval timer: show hands (all 4 or just the one matching ghost color in single mode)
+    const handsToShow = isSingleMode
+      ? state.lapTimer.hands.filter(h => h.color === (state.intervalTimer.ghostColor || '#ff4d4d'))
+      : state.lapTimer.hands;
+    
+    handsToShow.forEach(h => {
       const s = (base + h.offset) % 60;
       const a = s * Math.PI / 30 - Math.PI / 2;
-
-      // Outline
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = baseWidth + 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
-      ctx.stroke();
-
-      // Colored hand
-      ctx.strokeStyle = h.color;
-      ctx.lineWidth = baseWidth;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
-      ctx.stroke();
+      
+      drawHand(ctx, cx, cy, a, length, h.color, baseWidth, currentStyle);
     });
   }
 
@@ -640,7 +768,7 @@ let configIntervalsBtn, stopIntervalBtn, intervalConfigPanel;
 let countdownInput, workInput, restInput, roundsInput, infiniteRounds, beepEnabled;
 let volumeSlider, volumeValue, saveIntervalConfig, cancelIntervalConfig, menuOverlay;
 let summaryCountdown, summaryWork, summaryRest, summaryRounds;
-let handStyleRadios;
+let handStyleRadios, handWidthRadios;
 
 // ============================================================================
 // INITIALIZATION
@@ -662,8 +790,9 @@ function initializeDOM() {
   options = document.getElementById('options');
   menu = document.getElementById('menu');
   
-  // Get hand style radio buttons
+  // Get hand style and width radio buttons
   handStyleRadios = document.querySelectorAll('input[name="handStyle"]');
+  handWidthRadios = document.querySelectorAll('input[name="handWidth"]');
   
   // Lap timer elements
   lapTimerControls = document.getElementById('lapTimerControls');
@@ -710,6 +839,16 @@ function initializeUI() {
       radio.checked = true;
     }
   });
+  
+  // Set the correct hand width radio button
+  handWidthRadios.forEach(radio => {
+    if (radio.value === state.display.handWidth) {
+      radio.checked = true;
+    }
+  });
+  
+  // Show/hide width options based on style
+  updateHandWidthVisibility();
   
   // Initialize interval config inputs
   countdownInput.value = state.intervalTimer.countdown;
@@ -834,6 +973,18 @@ function updateModeUI() {
     intervalDisplay.classList.remove('hidden');
     digital.classList.remove('rest');
     updateIntervalSummary();
+  }
+}
+
+function updateHandWidthVisibility() {
+  const widthSection = document.getElementById('handWidthSection');
+  if (widthSection) {
+    // Hide width options for 'single' mode
+    if (state.display.handStyle === 'single') {
+      widthSection.style.display = 'none';
+    } else {
+      widthSection.style.display = 'block';
+    }
   }
 }
 
@@ -1337,6 +1488,15 @@ function setupEventListeners() {
   handStyleRadios.forEach(radio => {
     radio.onchange = () => {
       state.display.handStyle = radio.value;
+      updateHandWidthVisibility();
+      saveSettings();
+    };
+  });
+  
+  // Hand width radio buttons
+  handWidthRadios.forEach(radio => {
+    radio.onchange = () => {
+      state.display.handWidth = radio.value;
       saveSettings();
     };
   });
