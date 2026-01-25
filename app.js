@@ -15,8 +15,9 @@ const DEFAULT_STATE = {
   display: {
     dark: true,
     ghostHand: true,
-    handStyle: 'standard', // 'thin', 'standard', 'bold', 'tapered', 'diamond', 'single'
-    handWidth: 'standard' // Only used for straight/tapered/diamond: 'thin', 'standard', 'bold'
+    singleHand: false, // New toggle: if true, only Red hand is shown
+    handStyle: 'standard', // 'thin', 'standard', 'bold', 'tapered', 'diamond'
+    handWidth: 'standard' // 'thin', 'standard', 'bold'
   },
   
   // Lap timer state
@@ -82,6 +83,7 @@ function loadSettings() {
       state.display.ghostHand = s.ghostHand ?? state.display.ghostHand;
       state.display.handStyle = s.handStyle ?? state.display.handStyle;
       state.display.handWidth = s.handWidth ?? state.display.handWidth;
+      state.display.singleHand = s.singleHand ?? state.display.singleHand;
       state.currentMode = s.currentMode ?? state.currentMode;
       
       // Load interval timer settings
@@ -108,6 +110,7 @@ function saveSettings() {
       ghostHand: state.display.ghostHand,
       handStyle: state.display.handStyle,
       handWidth: state.display.handWidth,
+      singleHand: state.display.singleHand,
       currentMode: state.currentMode,
       intervalTimer: {
         countdown: state.intervalTimer.countdown,
@@ -264,156 +267,94 @@ function fmt(ms) {
 // HAND DRAWING FUNCTIONS
 // ============================================================================
 
-function getHandWidth() {
-  if (state.display.handWidth === 'thin') return 6;
-  if (state.display.handWidth === 'bold') return 12;
+function getHandWidth(widthCategory) {
+  if (widthCategory === 'thin') return 6;
+  if (widthCategory === 'bold') return 12;
   return 8; // standard
 }
 
-function drawStraightHand(ctx, cx, cy, angle, length, color, width) {
-  // Outline
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = width + 2;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + Math.cos(angle) * length, cy + Math.sin(angle) * length);
-  ctx.stroke();
+/**
+ * Creates the path for a hand based on style.
+ * Used for both the filled hand and the ghost outline.
+ */
+function createHandPath(ctx, style, widthCategory, length) {
+  let width = getHandWidth(widthCategory);
 
-  // Colored hand
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + Math.cos(angle) * length, cy + Math.sin(angle) * length);
-  ctx.stroke();
-}
+  // Style overrides for width
+  if (style === 'bold') width = 12;
+  if (style === 'thin') width = 4;
 
-function drawTaperedHand(ctx, cx, cy, angle, length, color, baseWidth) {
-  const tipWidth = baseWidth * 0.2; // Taper to 20% of base width
-  
-  // Calculate perpendicular angle for width
-  const perpAngle = angle + Math.PI / 2;
-  
-  // Base points (at center)
-  const baseLeft = {
-    x: cx + Math.cos(perpAngle) * (baseWidth / 2),
-    y: cy + Math.sin(perpAngle) * (baseWidth / 2)
-  };
-  const baseRight = {
-    x: cx - Math.cos(perpAngle) * (baseWidth / 2),
-    y: cy - Math.sin(perpAngle) * (baseWidth / 2)
-  };
-  
-  // Tip points (at end)
-  const tipX = cx + Math.cos(angle) * length;
-  const tipY = cy + Math.sin(angle) * length;
-  const tipLeft = {
-    x: tipX + Math.cos(perpAngle) * (tipWidth / 2),
-    y: tipY + Math.sin(perpAngle) * (tipWidth / 2)
-  };
-  const tipRight = {
-    x: tipX - Math.cos(perpAngle) * (tipWidth / 2),
-    y: tipY - Math.sin(perpAngle) * (tipWidth / 2)
-  };
-  
-  // Draw outline
-  ctx.fillStyle = '#000';
   ctx.beginPath();
-  ctx.moveTo(baseLeft.x + Math.cos(perpAngle) * 1, baseLeft.y + Math.sin(perpAngle) * 1);
-  ctx.lineTo(tipLeft.x + Math.cos(perpAngle) * 1, tipLeft.y + Math.sin(perpAngle) * 1);
-  ctx.lineTo(tipRight.x - Math.cos(perpAngle) * 1, tipRight.y - Math.sin(perpAngle) * 1);
-  ctx.lineTo(baseRight.x - Math.cos(perpAngle) * 1, baseRight.y - Math.sin(perpAngle) * 1);
-  ctx.closePath();
-  ctx.fill();
-  
-  // Draw colored hand
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(baseLeft.x, baseLeft.y);
-  ctx.lineTo(tipLeft.x, tipLeft.y);
-  ctx.lineTo(tipRight.x, tipRight.y);
-  ctx.lineTo(baseRight.x, baseRight.y);
-  ctx.closePath();
-  ctx.fill();
-}
 
-function drawDiamondHand(ctx, cx, cy, angle, length, color, width) {
-  // Draw straight line for most of the hand
-  const lineLength = length - width * 2;
-  
-  // Outline for line
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = width + 2;
-  ctx.lineCap = 'butt';
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + Math.cos(angle) * lineLength, cy + Math.sin(angle) * lineLength);
-  ctx.stroke();
-  
-  // Colored line
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + Math.cos(angle) * lineLength, cy + Math.sin(angle) * lineLength);
-  ctx.stroke();
-  
-  // Diamond tip
-  const diamondStart = lineLength;
-  const diamondSize = width * 2;
-  const diamondCenter = {
-    x: cx + Math.cos(angle) * (diamondStart + diamondSize / 2),
-    y: cy + Math.sin(angle) * (diamondStart + diamondSize / 2)
-  };
-  const perpAngle = angle + Math.PI / 2;
-  
-  // Diamond points
-  const tip = {
-    x: cx + Math.cos(angle) * length,
-    y: cy + Math.sin(angle) * length
-  };
-  const left = {
-    x: diamondCenter.x + Math.cos(perpAngle) * (width / 2),
-    y: diamondCenter.y + Math.sin(perpAngle) * (width / 2)
-  };
-  const right = {
-    x: diamondCenter.x - Math.cos(perpAngle) * (width / 2),
-    y: diamondCenter.y - Math.sin(perpAngle) * (width / 2)
-  };
-  const base = {
-    x: cx + Math.cos(angle) * diamondStart,
-    y: cy + Math.sin(angle) * diamondStart
-  };
-  
-  // Draw diamond outline
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.moveTo(tip.x, tip.y);
-  ctx.lineTo(left.x + Math.cos(perpAngle) * 1, left.y + Math.sin(perpAngle) * 1);
-  ctx.lineTo(base.x, base.y);
-  ctx.lineTo(right.x - Math.cos(perpAngle) * 1, right.y - Math.sin(perpAngle) * 1);
-  ctx.closePath();
-  ctx.fill();
-  
-  // Draw colored diamond
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(tip.x, tip.y);
-  ctx.lineTo(left.x, left.y);
-  ctx.lineTo(base.x, base.y);
-  ctx.lineTo(right.x, right.y);
-  ctx.closePath();
-  ctx.fill();
-}
-
-function drawHand(ctx, cx, cy, angle, length, color, width, style) {
   if (style === 'tapered') {
-    drawTaperedHand(ctx, cx, cy, angle, length, color, width);
+    const tipWidth = width * 0.2; 
+    // Left Base -> Left Tip -> Right Tip -> Right Base
+    ctx.moveTo(-width / 2, 0);
+    ctx.lineTo(-tipWidth / 2, -length);
+    ctx.lineTo(tipWidth / 2, -length);
+    ctx.lineTo(width / 2, 0);
+    ctx.closePath();
+
   } else if (style === 'diamond') {
-    drawDiamondHand(ctx, cx, cy, angle, length, color, width);
+    // Overlapping Diamond Logic
+    // Shaft enters the diamond. 
+    // We draw the SILHOUETTE so the ghost outline doesn't have internal lines.
+    
+    const diamondSize = width * 2.8; 
+    const diamondHeight = diamondSize * 1.6;
+    const shaftWidth = width;
+    
+    // The diamond sits at the end.
+    // Tip is at (0, -length).
+    // Diamond vertical range: from -length down to (-length + diamondHeight).
+    // Shaft goes from 0 up to (-length + diamondHeight).
+    // Actually, to overlap, the shaft goes up INTO the diamond.
+    
+    const diamondCenterY = -length + (diamondHeight / 2);
+    // Shaft intersection point (visually):
+    // We'll run the shaft up to the bottom half of the diamond.
+    
+    const diamondBottomY = -length + diamondHeight;
+    const shaftTopY = diamondBottomY - (diamondHeight * 0.25); // Overlap slightly
+
+    // 1. Bottom Left Shaft
+    ctx.moveTo(-shaftWidth / 2, 0);
+    
+    // 2. Up to where diamond starts widening (Left side)
+    // Calculating intersection is complex, let's approximate the silhouette:
+    // Shaft goes up to overlap, Diamond sits on top.
+    
+    // For a clean outline, we trace:
+    // Bottom Left Shaft -> Top Left Shaft (hidden inside) -> Left Diamond Corner -> Tip -> Right Diamond Corner -> Top Right Shaft -> Bottom Right Shaft
+    
+    // To make it look "merged", we start the diamond widening from the shaft width.
+    
+    // Start at bottom left of shaft
+    ctx.moveTo(-shaftWidth / 2, 0);
+    
+    // Go up shaft to transition point
+    ctx.lineTo(-shaftWidth / 2, diamondBottomY);
+    
+    // Go out to Diamond Left
+    ctx.lineTo(-diamondSize / 2, diamondCenterY);
+    
+    // Go to Tip
+    ctx.lineTo(0, -length);
+    
+    // Go to Diamond Right
+    ctx.lineTo(diamondSize / 2, diamondCenterY);
+    
+    // Go in to Shaft Right
+    ctx.lineTo(shaftWidth / 2, diamondBottomY);
+    
+    // Go down Shaft Right
+    ctx.lineTo(shaftWidth / 2, 0);
+    
+    ctx.closePath();
+
   } else {
-    drawStraightHand(ctx, cx, cy, angle, length, color, width);
+    // Standard / Bold / Thin (Rectangular)
+    ctx.rect(-width / 2, -length, width, length);
   }
 }
 
@@ -425,9 +366,7 @@ let drawCount = 0;
 
 function drawClock() {
   if (!canvas) {
-    if (drawCount === 0) {
-      console.error('drawClock: Canvas not found!');
-    }
+    if (drawCount === 0) console.error('drawClock: Canvas not found!');
     return;
   }
   
@@ -437,134 +376,134 @@ function drawClock() {
     const cx = 270, cy = 270, r = 243;
     
     drawCount++;
-    if (drawCount === 1) {
-      console.log('drawClock: First draw successful');
-    }
 
-  // Background
-  ctx.fillStyle = state.display.dark ? '#0b0f14' : '#f2f2f2';
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Border
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = state.display.dark ? '#444' : '#111';
-  ctx.stroke();
-
-  // Tick marks
-  for (let i = 0; i < 60; i++) {
-    const a = i * Math.PI / 30 - Math.PI / 2;
-    const isMajor = i % 5 === 0;
-    ctx.lineWidth = isMajor ? 4 : 2;
-    ctx.strokeStyle = state.display.dark ? '#555' : '#111';
+    // Background
+    ctx.fillStyle = state.display.dark ? '#0b0f14' : '#f2f2f2';
     ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    ctx.lineTo(cx + Math.cos(a) * (r - (isMajor ? 32 : 16)), cy + Math.sin(a) * (r - (isMajor ? 32 : 16)));
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Border
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = state.display.dark ? '#444' : '#111';
     ctx.stroke();
-  }
 
-  // Numbers
-  ctx.fillStyle = state.display.dark ? '#9aa4b2' : '#000';
-  ctx.font = 'bold 32px system-ui';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (let n = 5; n <= 60; n += 5) {
-    const a = n * Math.PI / 30 - Math.PI / 2;
-    ctx.fillText(n, cx + Math.cos(a) * (r - 58), cy + Math.sin(a) * (r - 58));
-  }
-
-  // Clock hands - behavior depends on mode
-  const base = (Date.now() / 1000) % 60;
-  const length = r - 32;
-  const baseWidth = getHandWidth();
-  const currentStyle = state.display.handStyle;
-  const isSingleMode = currentStyle === 'single';
-
-  if (state.currentMode === 'lapTimer') {
-    // Draw lap timer ghost hand FIRST (behind regular hands)
-    if (state.lapTimer.ghost && state.display.ghostHand) {
-      const a = state.lapTimer.ghost.seconds * Math.PI / 30 - Math.PI / 2;
-      ctx.globalAlpha = 0.5;
-      
-      // Ghost hand uses same style as regular hands
-      const ghostStyle = isSingleMode ? 'straight' : currentStyle;
-      const ghostWidth = isSingleMode ? 8 : baseWidth;
-      
-      // Outline
-      ctx.strokeStyle = state.display.dark ? '#888' : '#000';
-      ctx.lineWidth = ghostWidth + 3;
-      ctx.lineCap = 'round';
+    // Tick marks
+    for (let i = 0; i < 60; i++) {
+      const a = i * Math.PI / 30 - Math.PI / 2;
+      const isMajor = i % 5 === 0;
+      ctx.lineWidth = isMajor ? 4 : 2;
+      ctx.strokeStyle = state.display.dark ? '#555' : '#111';
       ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
+      ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      ctx.lineTo(cx + Math.cos(a) * (r - (isMajor ? 32 : 16)), cy + Math.sin(a) * (r - (isMajor ? 32 : 16)));
       ctx.stroke();
-      
-      // Draw ghost hand
-      drawHand(ctx, cx, cy, a, length, state.lapTimer.ghost.color, ghostWidth, ghostStyle);
-      
-      ctx.globalAlpha = 1;
     }
+
+    // Numbers
+    ctx.fillStyle = state.display.dark ? '#9aa4b2' : '#000';
+    ctx.font = 'bold 32px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let n = 5; n <= 60; n += 5) {
+      const a = n * Math.PI / 30 - Math.PI / 2;
+      ctx.fillText(n, cx + Math.cos(a) * (r - 58), cy + Math.sin(a) * (r - 58));
+    }
+
+    // ==========================================
+    // DRAW HANDS
+    // ==========================================
+    const now = Date.now();
+    const base = (now / 1000) % 60;
+    const length = r - 32;
+    const currentStyle = state.display.handStyle;
+    const isSingleHand = state.display.singleHand;
+
+    // --- GHOST HAND RENDERING ---
+    // Determined by mode
+    let ghostData = null;
     
-    // Lap timer: show hands (all 4 or just red in single mode)
-    const handsToShow = isSingleMode 
-      ? state.lapTimer.hands.filter(h => h.offset === 0) // Only red hand
-      : state.lapTimer.hands; // All hands
-    
-    handsToShow.forEach(h => {
-      const s = (base + h.offset) % 60;
-      const a = s * Math.PI / 30 - Math.PI / 2;
+    if (state.display.ghostHand) {
+      if (state.currentMode === 'lapTimer' && state.lapTimer.ghost) {
+        // In Single Hand mode, the ghost is always the Red hand ghost
+        if (isSingleHand) {
+           // If we are in single hand mode, the ghost should reflect where the 
+           // RED hand was (index 0). 
+           // The standard calculateGhostHand logic finds the "best" hand.
+           // However, if we only see Red, we want to see Red's ghost.
+           // We will rely on the ghost stored in state, but override color if needed.
+           ghostData = { ...state.lapTimer.ghost };
+           // Ensure color matches the visible hand
+           ghostData.color = state.lapTimer.hands[0].color;
+        } else {
+           ghostData = state.lapTimer.ghost;
+        }
+      } else if (state.currentMode === 'intervalTimer' && state.intervalTimer.ghostSeconds !== null) {
+        ghostData = {
+          seconds: state.intervalTimer.ghostSeconds,
+          color: state.intervalTimer.ghostColor || '#ff4d4d'
+        };
+      }
+    }
+
+    if (ghostData) {
+      const a = ghostData.seconds * Math.PI / 30; // 0 is top (which is -PI/2 in canvas arc, but rotate handles differently)
       
-      drawHand(ctx, cx, cy, a, length, h.color, baseWidth, currentStyle);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(a);
+
+      // Ghost uses the SAME geometry as active hands
+      ctx.strokeStyle = state.display.dark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.2)';
+      ctx.lineWidth = 2; // Outline width
+      
+      createHandPath(ctx, currentStyle, state.display.handWidth, length);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // --- ACTIVE HANDS RENDERING ---
+    let handsToDraw = state.lapTimer.hands;
+
+    // Filter for Single Hand Mode
+    if (isSingleHand) {
+      if (state.currentMode === 'lapTimer') {
+        handsToDraw = [state.lapTimer.hands[0]]; // Only Red
+      } else {
+        // In interval mode, we might want to show the hand corresponding to the interval color
+        // Or just Red. Let's stick to Red for consistency unless logic dictates otherwise.
+        // Actually, interval logic usually highlights specific colors. 
+        // If single hand is ON, let's only show the hand that matches the ghost color if present, or Red.
+        const activeColor = state.intervalTimer.ghostColor || '#ff4d4d';
+        handsToDraw = handsToDraw.filter(h => h.color === activeColor);
+        if (handsToDraw.length === 0) handsToDraw = [state.lapTimer.hands[0]];
+      }
+    }
+
+    handsToDraw.forEach(h => {
+      const s = (base + h.offset) % 60;
+      const a = s * Math.PI / 30; // Radians
+      
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(a);
+
+      ctx.fillStyle = h.color;
+      createHandPath(ctx, currentStyle, state.display.handWidth, length);
+      ctx.fill();
+      
+      ctx.restore();
     });
 
-  } else if (state.currentMode === 'intervalTimer') {
-    // Draw interval timer ghost hand FIRST (behind regular hands)
-    if (state.display.ghostHand && state.intervalTimer.ghostSeconds !== null && state.intervalTimer.ghostColor) {
-      const a = state.intervalTimer.ghostSeconds * Math.PI / 30 - Math.PI / 2;
-      ctx.globalAlpha = 0.5;
-      
-      const ghostStyle = isSingleMode ? 'standard' : currentStyle;
-      const ghostWidth = isSingleMode ? 10 : baseWidth * 1.3;
-      
-      // Outline
-      ctx.strokeStyle = state.display.dark ? '#888' : '#000';
-      ctx.lineWidth = ghostWidth + 3;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + Math.cos(a) * length, cy + Math.sin(a) * length);
-      ctx.stroke();
-      
-      // Draw ghost hand
-      drawHand(ctx, cx, cy, a, length, state.intervalTimer.ghostColor, ghostWidth, ghostStyle);
-      
-      ctx.globalAlpha = 1;
-    }
-    
-    // Interval timer: show hands (all 4 or just the one matching ghost color in single mode)
-    const handsToShow = isSingleMode
-      ? state.lapTimer.hands.filter(h => h.color === (state.intervalTimer.ghostColor || '#ff4d4d'))
-      : state.lapTimer.hands;
-    
-    handsToShow.forEach(h => {
-      const s = (base + h.offset) % 60;
-      const a = s * Math.PI / 30 - Math.PI / 2;
-      
-      drawHand(ctx, cx, cy, a, length, h.color, baseWidth, currentStyle);
-    });
-  }
-
-  // Center dot
-  ctx.fillStyle = state.display.dark ? '#777' : '#000';
-  ctx.beginPath();
-  ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-  ctx.fill();
+    // Center dot
+    ctx.fillStyle = state.display.dark ? '#777' : '#000';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+    ctx.fill();
   
   } catch (err) {
-    if (drawCount === 0) {
-      console.error('drawClock error:', err);
-    }
+    if (drawCount === 0) console.error('drawClock error:', err);
   }
 }
 
@@ -574,10 +513,18 @@ function drawClock() {
 
 function calculateGhostHand(now) {
   const base = (now / 1000) % 60;
+  
+  // If Single Hand Mode, we strictly track the Red Hand (index 0)
+  if (state.display.singleHand) {
+    const h = state.lapTimer.hands[0];
+    const s = (base + h.offset) % 60;
+    return { seconds: s, color: h.color };
+  }
+
+  // Standard Multi-Hand Logic: Find hand closest to top
   let best = null;
   let minDistance = Infinity;
 
-  // Find hand closest to top (0/60 seconds)
   state.lapTimer.hands.forEach(h => {
     const s = (base + h.offset) % 60;
     
@@ -619,7 +566,7 @@ function calculateGhostHand(now) {
 // ============================================================================
 
 const MIN_PRESS = 1000;
-const RESET_HOLD_TIME = 800; // 0.8 seconds - fast enough to prevent accidents
+const RESET_HOLD_TIME = 800;
 let digitalTimerInterval = null;
 
 function startDigitalTimer() {
@@ -758,7 +705,7 @@ function handleIntervalTimerTap() {
 }
 
 // ============================================================================
-// UI ELEMENTS - Will be initialized after DOM loads
+// UI ELEMENTS
 // ============================================================================
 
 let canvas, digital, totalClock, list, toggleRestBtn, ghostToggle;
@@ -768,7 +715,7 @@ let configIntervalsBtn, stopIntervalBtn, intervalConfigPanel;
 let countdownInput, workInput, restInput, roundsInput, infiniteRounds, beepEnabled;
 let volumeSlider, volumeValue, saveIntervalConfig, cancelIntervalConfig, menuOverlay;
 let summaryCountdown, summaryWork, summaryRest, summaryRounds;
-let handStyleRadios, handWidthRadios;
+let styleButtons, singleHandToggle;
 
 // ============================================================================
 // INITIALIZATION
@@ -787,12 +734,12 @@ function initializeDOM() {
   menuBtn = document.getElementById('menuBtn');
   resetBtn = document.getElementById('resetBtn');
   saveBtn = document.getElementById('saveBtn');
-  options = document.getElementById('options');
+  options = document.querySelector('.settings-panel'); // Panel inside overlay
   menu = document.getElementById('menu');
   
-  // Get hand style and width radio buttons
-  handStyleRadios = document.querySelectorAll('input[name="handStyle"]');
-  handWidthRadios = document.querySelectorAll('input[name="handWidth"]');
+  // Hand UI
+  singleHandToggle = document.getElementById('singleHandToggle');
+  styleButtons = document.querySelectorAll('.style-btn');
   
   // Lap timer elements
   lapTimerControls = document.getElementById('lapTimerControls');
@@ -833,22 +780,19 @@ function initializeUI() {
   ghostToggle.checked = state.display.ghostHand;
   guardToggle.checked = state.lapTimer.guard;
   
-  // Set the correct hand style radio button
-  handStyleRadios.forEach(radio => {
-    if (radio.value === state.display.handStyle) {
-      radio.checked = true;
+  // Initialize Style Buttons
+  styleButtons.forEach(btn => {
+    if (btn.dataset.style === state.display.handStyle) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
     }
   });
-  
-  // Set the correct hand width radio button
-  handWidthRadios.forEach(radio => {
-    if (radio.value === state.display.handWidth) {
-      radio.checked = true;
-    }
-  });
-  
-  // Show/hide width options based on style
-  updateHandWidthVisibility();
+
+  // Initialize Single Hand Toggle
+  if (singleHandToggle) {
+    singleHandToggle.checked = state.display.singleHand;
+  }
   
   // Initialize interval config inputs
   countdownInput.value = state.intervalTimer.countdown;
@@ -875,33 +819,25 @@ function init() {
     return;
   }
   
-  console.log('Canvas found:', canvas);
-  console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-  
   loadSettings();
   setupEventListeners();
   initializeUI();
   requestWakeLock();
   
-  console.log('Starting render loop...');
   let frameCount = 0;
   
   (function render() {
     drawClock();
     frameCount++;
-    if (frameCount === 1) {
-      console.log('First frame rendered');
-    }
+    if (frameCount === 1) console.log('First frame rendered');
     requestAnimationFrame(render);
   })();
 }
 
 // Wait for DOM to be ready
 if (document.readyState === 'loading') {
-  console.log('Waiting for DOM...');
   document.addEventListener('DOMContentLoaded', init);
 } else {
-  console.log('DOM already loaded');
   init();
 }
 
@@ -916,7 +852,6 @@ function switchMode(newMode) {
     return;
   }
   
-  // Check if there's an active session
   const hasActiveSession = 
     (state.currentMode === 'lapTimer' && state.lapTimer.sessionStart) ||
     (state.currentMode === 'intervalTimer' && state.intervalTimer.sessionStart);
@@ -927,25 +862,16 @@ function switchMode(newMode) {
     }
   }
   
-  // Reset current mode
   resetSession();
-  
-  // Switch mode
   state.currentMode = newMode;
-  
-  // Update UI
   updateModeUI();
-  
-  // Save preference
   saveSettings();
   
-  // Close menu
   menu.classList.remove('open');
   menuOverlay.classList.remove('visible');
 }
 
 function updateModeUI() {
-  // Update menu checkmarks
   document.querySelectorAll('.mode-item').forEach(item => {
     const mode = item.dataset.mode;
     if (mode === state.currentMode) {
@@ -957,7 +883,6 @@ function updateModeUI() {
     }
   });
   
-  // Show/hide appropriate controls and displays
   if (state.currentMode === 'lapTimer') {
     lapTimerControls.classList.remove('hidden');
     list.classList.remove('hidden');
@@ -973,18 +898,6 @@ function updateModeUI() {
     intervalDisplay.classList.remove('hidden');
     digital.classList.remove('rest');
     updateIntervalSummary();
-  }
-}
-
-function updateHandWidthVisibility() {
-  const widthSection = document.getElementById('handWidthSection');
-  if (widthSection) {
-    // Hide width options for 'single' mode
-    if (state.display.handStyle === 'single') {
-      widthSection.style.display = 'none';
-    } else {
-      widthSection.style.display = 'block';
-    }
   }
 }
 
@@ -1032,15 +945,12 @@ function startIntervalTimer() {
   state.intervalTimer.isPaused = false;
   state.intervalTimer.currentRound = 1;
   
-  // Determine which hand is closest to top at session start
   const ghostHand = calculateGhostHand(now);
   state.intervalTimer.ghostColor = ghostHand.color;
   
-  // Find the offset of the chosen hand
   const chosenHand = state.lapTimer.hands.find(h => h.color === ghostHand.color);
   state.intervalTimer.ghostHandOffset = chosenHand ? chosenHand.offset : 0;
   
-  // Calculate where this specific hand is right now
   const baseSeconds = (now / 1000) % 60;
   state.intervalTimer.ghostSeconds = (baseSeconds + state.intervalTimer.ghostHandOffset) % 60;
   
@@ -1062,23 +972,20 @@ function updateIntervalTimer() {
   const elapsed = now - state.intervalTimer.intervalStart;
   const remaining = state.intervalTimer.timeRemaining - elapsed;
   
-  // Update display
   digital.textContent = fmt(Math.max(0, remaining));
   if (state.intervalTimer.sessionStart) {
     totalClock.textContent = fmt(now - state.intervalTimer.sessionStart);
   }
   
-  // Check for warning beeps (3, 2, 1 seconds before transition)
   const secondsRemaining = Math.ceil(remaining / 1000);
   if (secondsRemaining === 3 || secondsRemaining === 2 || secondsRemaining === 1) {
     const lastBeepKey = `${state.intervalTimer.phase}-${secondsRemaining}`;
     if (state.intervalTimer.lastBeep !== lastBeepKey) {
-      beep(600, 100); // Warning beep
+      beep(600, 100); 
       state.intervalTimer.lastBeep = lastBeepKey;
     }
   }
   
-  // Check if phase complete
   if (remaining <= 0) {
     transitionIntervalPhase();
   }
@@ -1086,16 +993,12 @@ function updateIntervalTimer() {
 
 function transitionIntervalPhase() {
   const now = Date.now();
-  
-  // Final beep for transition (2.5x longer so it can't be missed)
   beep(1000, 500);
   
-  // Update ghost hand to show where the chosen hand is at this transition
   const baseSeconds = (now / 1000) % 60;
   state.intervalTimer.ghostSeconds = (baseSeconds + state.intervalTimer.ghostHandOffset) % 60;
   
   if (state.intervalTimer.phase === 'countdown') {
-    // Countdown -> Work
     state.intervalTimer.phase = 'work';
     state.intervalTimer.timeRemaining = state.intervalTimer.workTime * 1000;
     state.intervalTimer.intervalStart = now;
@@ -1106,12 +1009,10 @@ function transitionIntervalPhase() {
     state.intervalTimer.lastBeep = null;
     
   } else if (state.intervalTimer.phase === 'work') {
-    // Work -> Rest OR Finish (if final round)
     const totalRounds = state.intervalTimer.totalRounds;
     const isLastRound = totalRounds !== null && state.intervalTimer.currentRound >= totalRounds;
     
     if (isLastRound) {
-      // Final work set complete - go straight to finish
       beep(1000, 200);
       setTimeout(() => beep(1000, 200), 400);
       setTimeout(() => beep(1000, 200), 800);
@@ -1121,7 +1022,6 @@ function transitionIntervalPhase() {
       intervalStatus.className = 'interval-status done';
       canvas.classList.remove('glow-green', 'glow-blue', 'glow-yellow', 'glow-gray');
     } else {
-      // Not last round - proceed to rest
       state.intervalTimer.phase = 'rest';
       state.intervalTimer.timeRemaining = state.intervalTimer.restTime * 1000;
       state.intervalTimer.intervalStart = now;
@@ -1133,7 +1033,6 @@ function transitionIntervalPhase() {
     }
     
   } else if (state.intervalTimer.phase === 'rest') {
-    // Rest -> Next round work
     state.intervalTimer.currentRound++;
     state.intervalTimer.phase = 'work';
     state.intervalTimer.timeRemaining = state.intervalTimer.workTime * 1000;
@@ -1151,7 +1050,6 @@ function toggleIntervalPause() {
   state.intervalTimer.isPaused = !state.intervalTimer.isPaused;
   
   if (state.intervalTimer.isPaused) {
-    // Paused
     canvas.classList.remove('glow-green', 'glow-blue', 'glow-gray');
     canvas.classList.add('glow-yellow');
     intervalStatus.textContent = 'PAUSED';
@@ -1159,15 +1057,11 @@ function toggleIntervalPause() {
     state.intervalTimer.pauseTime = Date.now();
     
   } else {
-    // Resumed
     canvas.classList.remove('glow-yellow');
-    
-    // Adjust interval start to account for pause duration
     const pauseDuration = Date.now() - state.intervalTimer.pauseTime;
     state.intervalTimer.intervalStart += pauseDuration;
     state.intervalTimer.sessionStart += pauseDuration;
     
-    // Restore status and glow based on phase
     const phase = state.intervalTimer.phase;
     if (phase === 'countdown') {
       intervalStatus.textContent = 'GET READY';
@@ -1195,10 +1089,10 @@ function stopIntervalTimer() {
   state.intervalTimer.isPaused = false;
   canvas.classList.remove('glow-green', 'glow-blue', 'glow-yellow', 'glow-gray');
   
-  // Don't reset the session - keep the completed data
   digital.textContent = '00:00.0';
   intervalStatus.textContent = 'TAP TO START';
   intervalStatus.className = 'interval-status waiting';
+  intervalRounds.textContent = '';
 }
 
 function updateIntervalRounds() {
@@ -1225,11 +1119,9 @@ let saveHoldTimer = null;
 let saveHoldStart = null;
 
 function resetSession() {
-  // Stop any running timers
   stopDigitalTimer();
   
   if (state.currentMode === 'lapTimer') {
-    // Reset lap timer state while preserving user settings
     state.lapTimer.ghost = null;
     state.lapTimer.laps = [];
     state.lapTimer.lastTap = null;
@@ -1241,20 +1133,17 @@ function resetSession() {
     state.lapTimer.isFinished = false;
     state.lapTimer.lapCount = 1;
     
-    // Clear UI
     list.innerHTML = '';
     digital.textContent = '00:00.0';
     totalClock.textContent = '00:00.0';
     digital.classList.toggle('rest', state.lapTimer.mode === 'rest');
     
   } else if (state.currentMode === 'intervalTimer') {
-    // Stop interval timer
     if (intervalTimerInterval) {
       clearInterval(intervalTimerInterval);
       intervalTimerInterval = null;
     }
     
-    // Reset interval timer state
     state.intervalTimer.currentRound = 0;
     state.intervalTimer.completedRounds = [];
     state.intervalTimer.phase = 'waiting';
@@ -1268,14 +1157,12 @@ function resetSession() {
     state.intervalTimer.lastBeep = null;
     state.intervalTimer.pauseTime = null;
     
-    // Clear UI
     digital.textContent = '00:00.0';
     totalClock.textContent = '00:00.0';
     intervalStatus.textContent = 'TAP TO START';
     intervalStatus.className = 'interval-status waiting';
     intervalRounds.textContent = '';
     
-    // Remove glow
     canvas.classList.remove('glow-green', 'glow-blue', 'glow-yellow', 'glow-gray');
   }
 }
@@ -1285,13 +1172,9 @@ function startResetHold() {
   resetBtn.classList.add('holding');
   
   resetHoldTimer = setTimeout(() => {
-    // Reset completed
     resetBtn.classList.remove('holding');
     resetBtn.classList.add('reset-complete');
-    
-    // Execute reset
     resetSession();
-    
     setTimeout(() => {
       resetBtn.classList.remove('reset-complete');
     }, 500);
@@ -1308,31 +1191,27 @@ function cancelResetHold() {
 }
 
 function startSaveHold() {
-  // Only for lap timer mode
   if (state.currentMode !== 'lapTimer') return;
   
   saveHoldStart = Date.now();
   saveBtn.classList.add('holding');
   
   saveHoldTimer = setTimeout(() => {
-    // Save completed
     saveBtn.classList.remove('holding');
     saveBtn.classList.add('save-complete');
     
-    // Execute save
     stopDigitalTimer();
     state.lapTimer.isFinished = true;
     digital.textContent = 'Session Finished';
     totalClock.textContent = fmt(Date.now() - state.lapTimer.sessionStart);
     
-    // Prompt for session name if there are laps
     if (state.lapTimer.laps.length > 0) {
       const sessionStart = new Date(state.lapTimer.sessionStart);
       const defaultName = formatDateForFilename(sessionStart);
       
       const sessionName = prompt('Enter a name for this session (or leave blank for default):', defaultName);
       
-      if (sessionName !== null) { // User didn't cancel
+      if (sessionName !== null) { 
         const finalName = sessionName.trim() || defaultName;
         exportWorkout(finalName);
       }
@@ -1364,35 +1243,35 @@ function setupEventListeners() {
     menuOverlay.classList.add('visible');
   };
 
-  // Menu close button and overlay
-  document.querySelector('.menu-close').onclick = () => {
+  // Close Menu Logic
+  const closeAllMenus = () => {
     menu.classList.remove('open');
     menuOverlay.classList.remove('visible');
+    // Also close settings panel if open
+    const settingsPanel = document.querySelector('.settings-panel');
+    if (settingsPanel) settingsPanel.parentElement.classList.remove('visible'); // actually overlay
   };
+  
+  // The 'menu-close' button in the slide-out menu
+  const menuClose = document.querySelector('.menu-close');
+  if (menuClose) menuClose.onclick = closeAllMenus;
 
-  menuOverlay.onclick = () => {
-    // Only close menu, not options or interval config (they handle their own overlay clicks)
-    if (menu.classList.contains('open')) {
+  // Settings Panel Close Button (Sticky Header)
+  const closeMenuBtn = document.getElementById('closeMenuBtn');
+  if (closeMenuBtn) {
+    closeMenuBtn.onclick = () => {
+      menuOverlay.classList.remove('visible');
+    };
+  }
+
+  // Overlay click behavior
+  menuOverlay.onclick = (e) => {
+    if (e.target === menuOverlay) {
       menu.classList.remove('open');
       menuOverlay.classList.remove('visible');
-    } else if (options.classList.contains('open')) {
-      options.classList.remove('open');
-      menuOverlay.classList.remove('visible');
-    } else if (intervalConfigPanel.classList.contains('open')) {
-      intervalConfigPanel.classList.remove('open');
-      menuOverlay.classList.remove('visible');
+      if (intervalConfigPanel) intervalConfigPanel.classList.remove('open');
     }
   };
-
-  // Prevent clicks inside options panel from closing it
-  options.addEventListener('click', (e) => {
-    e.stopPropagation();
-  });
-
-  // Prevent clicks inside interval config panel from closing it
-  intervalConfigPanel.addEventListener('click', (e) => {
-    e.stopPropagation();
-  });
 
   // Mode switching
   document.querySelectorAll('.mode-item').forEach(item => {
@@ -1403,19 +1282,17 @@ function setupEventListeners() {
   });
 
   // Settings from menu
-  document.getElementById('menuSettings').onclick = () => {
-    menu.classList.remove('open');
-    menuOverlay.classList.add('visible');
-    options.classList.add('open');
-  };
+  const menuSettingsBtn = document.getElementById('menuSettings');
+  if (menuSettingsBtn) {
+    menuSettingsBtn.onclick = () => {
+      menu.classList.remove('open');
+      // Show settings overlay
+      menuOverlay.classList.add('visible');
+      // Ensure settings panel is visible (handled by CSS targeting .settings-panel inside overlay)
+    };
+  }
 
-  // Close settings button
-  document.getElementById('closeSettings').onclick = () => {
-    options.classList.remove('open');
-    menuOverlay.classList.remove('visible');
-  };
-
-  // Canvas tap and text selection prevention
+  // Canvas interaction
   if (canvas) {
     canvas.addEventListener('pointerdown', handleTap);
     
@@ -1433,13 +1310,12 @@ function setupEventListeners() {
         });
       }
     });
-  } else {
-    console.error('setupEventListeners: Canvas not found!');
   }
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
-    if (options.classList.contains('open') || intervalConfigPanel.classList.contains('open') || menu.classList.contains('open')) {
+    // Disable shortcuts if a menu/panel is open
+    if (menuOverlay.classList.contains('visible') || menu.classList.contains('open')) {
       return;
     }
     
@@ -1484,22 +1360,28 @@ function setupEventListeners() {
     saveSettings();
   };
 
-  // Hand style radio buttons
-  handStyleRadios.forEach(radio => {
-    radio.onchange = () => {
-      state.display.handStyle = radio.value;
-      updateHandWidthVisibility();
+  // Updated Hand Style Logic
+  if (styleButtons) {
+    styleButtons.forEach(btn => {
+      btn.onclick = () => {
+        // UI Update
+        styleButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // State Update
+        state.display.handStyle = btn.dataset.style;
+        saveSettings();
+      };
+    });
+  }
+
+  // Single Hand Toggle Logic
+  if (singleHandToggle) {
+    singleHandToggle.onchange = () => {
+      state.display.singleHand = singleHandToggle.checked;
       saveSettings();
     };
-  });
-  
-  // Hand width radio buttons
-  handWidthRadios.forEach(radio => {
-    radio.onchange = () => {
-      state.display.handWidth = radio.value;
-      saveSettings();
-    };
-  });
+  }
 
   // Guard toggle
   guardToggle.onchange = e => {
@@ -1516,58 +1398,44 @@ function setupEventListeners() {
     }
   });
 
-  // Reset button hold handlers
-  resetBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    startResetHold();
-  });
-
-  resetBtn.addEventListener('pointerup', (e) => {
-    e.preventDefault();
-    cancelResetHold();
-  });
-
-  resetBtn.addEventListener('pointerleave', (e) => {
-    cancelResetHold();
-  });
-
-  resetBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    cancelResetHold();
-  });
-
-  // Save button hold handlers
-  saveBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    startSaveHold();
-  });
-
-  saveBtn.addEventListener('pointerup', (e) => {
-    e.preventDefault();
-    cancelSaveHold();
-  });
-
-  saveBtn.addEventListener('pointerleave', (e) => {
-    cancelSaveHold();
-  });
-
-  saveBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    cancelSaveHold();
+  // Reset/Save Button Handlers (Hold logic)
+  [resetBtn, saveBtn].forEach(btn => {
+    if (!btn) return;
+    const isReset = btn === resetBtn;
+    
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      isReset ? startResetHold() : startSaveHold();
+    });
+    btn.addEventListener('pointerup', (e) => {
+      e.preventDefault();
+      isReset ? cancelResetHold() : cancelSaveHold();
+    });
+    btn.addEventListener('pointerleave', () => {
+      isReset ? cancelResetHold() : cancelSaveHold();
+    });
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      isReset ? cancelResetHold() : cancelSaveHold();
+    });
   });
 
   // Interval timer controls
-  configIntervalsBtn.onclick = () => {
-    intervalConfigPanel.classList.add('open');
-    menuOverlay.classList.add('visible');
-  };
+  if (configIntervalsBtn) {
+    configIntervalsBtn.onclick = () => {
+      intervalConfigPanel.classList.add('open');
+      menuOverlay.classList.add('visible');
+    };
+  }
 
-  stopIntervalBtn.onclick = () => {
-    if (confirm('Stop interval timer?')) {
-      stopIntervalTimer();
-      resetSession();
-    }
-  };
+  if (stopIntervalBtn) {
+    stopIntervalBtn.onclick = () => {
+      if (confirm('Stop interval timer?')) {
+        stopIntervalTimer();
+        resetSession();
+      }
+    };
+  }
 
   // Interval config panel
   infiniteRounds.onchange = () => {
