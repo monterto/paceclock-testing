@@ -420,6 +420,66 @@ canvas.glow-gray {
   flex-shrink: 0;
 }
 
+.hand-style-section {
+  margin-top: 20px;
+}
+
+.hand-style-label {
+  margin: 0 0 12px 0;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.radio-group {
+  display: flex;
+  gap: 8px;
+}
+
+.radio-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 12px;
+  background: #1a2133;
+  border: 2px solid #1a2133;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.radio-option:hover {
+  background: #242d42;
+  border-color: #242d42;
+}
+
+.radio-option input[type="radio"] {
+  margin: 0 0 8px 0;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.radio-option input[type="radio"]:checked ~ .radio-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.radio-option:has(input[type="radio"]:checked) {
+  background: #242d42;
+  border-color: var(--accent);
+}
+
+.radio-label {
+  font-size: 0.9rem;
+  color: var(--text);
+  transition: var(--transition);
+  text-align: center;
+}
+
 #options button {
   margin-top: 20px;
   padding: 14px 24px;
