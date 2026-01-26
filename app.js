@@ -327,36 +327,44 @@ function drawTaperedHand(ctx, cx, cy, angle, length, color, baseWidth) {
 }
 
 function drawDiamondHand(ctx, cx, cy, angle, length, color, width) {
-  const diamondSize = width * 2.8;
-  const diamondHeight = diamondSize * 1.6;
   const shaftWidth = width;
+  const diamondBaseWidth = width * 1.2; // Slightly wider than shaft (short side)
+  const diamondLength = width * 5; // Long diamond length
   
-  const diamondCenterY = -length + (diamondHeight / 2);
-  const diamondBottomY = -length + diamondHeight;
+  const diamondBottomY = -length + diamondLength; // Where diamond base connects to shaft
   
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle + Math.PI / 2);
   
+  // Draw outline (black)
   ctx.fillStyle = '#000';
   ctx.beginPath();
+  // Start at bottom left of shaft
   ctx.moveTo(-shaftWidth / 2 - 1, 0);
+  // Up left side of shaft to diamond base
   ctx.lineTo(-shaftWidth / 2 - 1, diamondBottomY);
-  ctx.lineTo(-diamondSize / 2 - 1, diamondCenterY);
+  // Out to left corner of diamond base (short side)
+  ctx.lineTo(-diamondBaseWidth / 2 - 1, diamondBottomY);
+  // Up left long side to tip
   ctx.lineTo(0, -length - 1);
-  ctx.lineTo(diamondSize / 2 + 1, diamondCenterY);
+  // Down right long side to right corner of diamond base
+  ctx.lineTo(diamondBaseWidth / 2 + 1, diamondBottomY);
+  // In to right side of shaft (short side)
   ctx.lineTo(shaftWidth / 2 + 1, diamondBottomY);
+  // Down right side of shaft
   ctx.lineTo(shaftWidth / 2 + 1, 0);
   ctx.closePath();
   ctx.fill();
   
+  // Draw colored hand
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(-shaftWidth / 2, 0);
   ctx.lineTo(-shaftWidth / 2, diamondBottomY);
-  ctx.lineTo(-diamondSize / 2, diamondCenterY);
+  ctx.lineTo(-diamondBaseWidth / 2, diamondBottomY);
   ctx.lineTo(0, -length);
-  ctx.lineTo(diamondSize / 2, diamondCenterY);
+  ctx.lineTo(diamondBaseWidth / 2, diamondBottomY);
   ctx.lineTo(shaftWidth / 2, diamondBottomY);
   ctx.lineTo(shaftWidth / 2, 0);
   ctx.closePath();
@@ -464,11 +472,10 @@ function drawClock() {
         drawTaperedHand(ctx, cx, cy, a, length, state.lapTimer.ghost.color, ghostWidth);
         
       } else if (currentStyle === 'diamond') {
-        const diamondSize = ghostWidth * 2.8;
-        const diamondHeight = diamondSize * 1.6;
         const shaftWidth = ghostWidth + 2;
-        const diamondCenterY = -length + (diamondHeight / 2);
-        const diamondBottomY = -length + diamondHeight;
+        const diamondBaseWidth = (ghostWidth * 1.2) + 2;
+        const diamondLength = ghostWidth * 5;
+        const diamondBottomY = -length + diamondLength;
         
         ctx.save();
         ctx.translate(cx, cy);
@@ -478,9 +485,9 @@ function drawClock() {
         ctx.beginPath();
         ctx.moveTo(-shaftWidth / 2, 0);
         ctx.lineTo(-shaftWidth / 2, diamondBottomY);
-        ctx.lineTo(-diamondSize / 2 - 1, diamondCenterY);
+        ctx.lineTo(-diamondBaseWidth / 2, diamondBottomY);
         ctx.lineTo(0, -length - 1);
-        ctx.lineTo(diamondSize / 2 + 1, diamondCenterY);
+        ctx.lineTo(diamondBaseWidth / 2, diamondBottomY);
         ctx.lineTo(shaftWidth / 2, diamondBottomY);
         ctx.lineTo(shaftWidth / 2, 0);
         ctx.closePath();
@@ -546,11 +553,10 @@ function drawClock() {
         drawTaperedHand(ctx, cx, cy, a, length, state.intervalTimer.ghostColor, ghostWidth);
         
       } else if (currentStyle === 'diamond') {
-        const diamondSize = ghostWidth * 2.8;
-        const diamondHeight = diamondSize * 1.6;
         const shaftWidth = ghostWidth + 2;
-        const diamondCenterY = -length + (diamondHeight / 2);
-        const diamondBottomY = -length + diamondHeight;
+        const diamondBaseWidth = (ghostWidth * 1.2) + 2;
+        const diamondLength = ghostWidth * 5;
+        const diamondBottomY = -length + diamondLength;
         
         ctx.save();
         ctx.translate(cx, cy);
@@ -560,9 +566,9 @@ function drawClock() {
         ctx.beginPath();
         ctx.moveTo(-shaftWidth / 2, 0);
         ctx.lineTo(-shaftWidth / 2, diamondBottomY);
-        ctx.lineTo(-diamondSize / 2 - 1, diamondCenterY);
+        ctx.lineTo(-diamondBaseWidth / 2, diamondBottomY);
         ctx.lineTo(0, -length - 1);
-        ctx.lineTo(diamondSize / 2 + 1, diamondCenterY);
+        ctx.lineTo(diamondBaseWidth / 2, diamondBottomY);
         ctx.lineTo(shaftWidth / 2, diamondBottomY);
         ctx.lineTo(shaftWidth / 2, 0);
         ctx.closePath();
