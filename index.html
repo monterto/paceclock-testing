@@ -49,7 +49,7 @@ You may not use this software for commercial purposes.
     <!-- Lap Timer Controls -->
     <div id="lapTimerControls" class="controls-container" role="toolbar" aria-label="Session controls">
       <button id="saveBtn" aria-label="Save session"><span>💾 Save</span></button>
-      <button id="toggleRestBtn" aria-label="Toggle rest tracking"><span>Rest ✗</span></button>
+      <button id="toggleRestBtn" aria-label="Toggle rest tracking"><span>Rest ☐</span></button>
       <button id="resetBtn" aria-label="Hold to reset session"><span>🔄 Reset</span></button>
     </div>
 
@@ -110,8 +110,6 @@ You may not use this software for commercial purposes.
 
   <!-- Settings Panel (existing options, now accessible from menu) -->
   <div id="options" role="dialog" aria-labelledby="optionsTitle" aria-modal="true">
-    <button id="closeSettings" aria-label="Close settings" class="sticky-close">Close</button>
-    
     <h2 id="optionsTitle">Settings</h2>
     
     <div class="settings-section">
@@ -130,6 +128,13 @@ You may not use this software for commercial purposes.
       <span id="ghostDesc" class="sr-only">Display ghost hand showing previous lap position</span>
       <br><br>
       
+      <label>
+        <input type="checkbox" id="singleHandToggle" aria-describedby="singleDesc">
+        Single Hand Mode
+      </label>
+      <span id="singleDesc" class="sr-only">Show only the red hand instead of all four hands</span>
+      <br><br>
+      
       <div class="hand-style-section">
         <p class="hand-style-label">Clock Hand Style</p>
         <div class="radio-group-vertical">
@@ -144,10 +149,6 @@ You may not use this software for commercial purposes.
           <label class="radio-option-horizontal">
             <input type="radio" name="handStyle" value="diamond">
             <span class="radio-label">Diamond</span>
-          </label>
-          <label class="radio-option-horizontal">
-            <input type="radio" name="handStyle" value="single">
-            <span class="radio-label">Single Red</span>
           </label>
         </div>
       </div>
@@ -181,6 +182,8 @@ You may not use this software for commercial purposes.
       <br><br>
     </div>
     
+    <button id="closeSettings" aria-label="Close settings">Close</button>
+    
     <div class="keyboard-shortcuts">
       <h3>Keyboard Shortcuts</h3>
       <ul>
@@ -189,7 +192,7 @@ You may not use this software for commercial purposes.
         <li><kbd>Shift+Delete</kbd> - Reset session (hold completes)</li>
       </ul>
       <p style="margin-top: 12px; font-size: 0.85rem; color: var(--muted);">
-        <strong>Mobile:</strong> Hold Save or Reset buttons for 1.5 seconds
+        <strong>Mobile:</strong> Hold Save or Reset buttons for 0.8 seconds
       </p>
     </div>
   </div>
