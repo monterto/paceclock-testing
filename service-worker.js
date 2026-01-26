@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pace-clock-testing-v10';
+const CACHE_NAME = 'pace-clock-testing-v11';
 
 const ASSETS = [
   './',
