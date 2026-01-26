@@ -334,12 +334,10 @@ function drawDiamondHand(ctx, cx, cy, angle, length, color, width) {
   const diamondCenterY = -length + (diamondHeight / 2);
   const diamondBottomY = -length + diamondHeight;
   
-  // Save context and transform
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle + Math.PI / 2);
   
-  // Draw outline (black)
   ctx.fillStyle = '#000';
   ctx.beginPath();
   ctx.moveTo(-shaftWidth / 2 - 1, 0);
@@ -352,7 +350,6 @@ function drawDiamondHand(ctx, cx, cy, angle, length, color, width) {
   ctx.closePath();
   ctx.fill();
   
-  // Draw colored hand
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(-shaftWidth / 2, 0);
@@ -444,7 +441,6 @@ function drawClock() {
       
       const ghostWidth = baseWidth;
       
-      // Draw ghost hand with proper outline
       if (currentStyle === 'tapered') {
         const tipWidth = ghostWidth * 0.2;
         const perpAngle = a + Math.PI / 2;
@@ -468,7 +464,6 @@ function drawClock() {
         drawTaperedHand(ctx, cx, cy, a, length, state.lapTimer.ghost.color, ghostWidth);
         
       } else if (currentStyle === 'diamond') {
-        // Draw outline for diamond
         const diamondSize = ghostWidth * 2.8;
         const diamondHeight = diamondSize * 1.6;
         const shaftWidth = ghostWidth + 2;
@@ -496,7 +491,6 @@ function drawClock() {
         drawDiamondHand(ctx, cx, cy, a, length, state.lapTimer.ghost.color, ghostWidth);
         
       } else {
-        // Straight outline
         ctx.strokeStyle = state.display.dark ? '#888' : '#000';
         ctx.lineWidth = ghostWidth + 3;
         ctx.lineCap = 'round';
@@ -529,7 +523,6 @@ function drawClock() {
       
       const ghostWidth = baseWidth * 1.3;
       
-      // Draw ghost hand with proper outline
       if (currentStyle === 'tapered') {
         const tipWidth = ghostWidth * 0.2;
         const perpAngle = a + Math.PI / 2;
@@ -625,7 +618,6 @@ function drawClock() {
 function calculateGhostHand(now) {
   const base = (now / 1000) % 60;
   
-  // In single hand mode, always use the red hand (offset 0)
   if (state.display.singleHand) {
     const redHand = state.lapTimer.hands.find(h => h.offset === 0);
     const s = base % 60;
@@ -1007,7 +999,6 @@ function updateModeUI() {
 function updateHandWidthVisibility() {
   const widthSection = document.getElementById('handWidthSection');
   if (widthSection) {
-    // Width options are always visible now
     widthSection.style.display = 'block';
   }
 }
@@ -1056,7 +1047,6 @@ function startIntervalTimer() {
   state.intervalTimer.isPaused = false;
   state.intervalTimer.currentRound = 1;
   
-  // In single hand mode, always use red hand; otherwise find closest to top
   let ghostHand;
   if (state.display.singleHand) {
     const redHand = state.lapTimer.hands.find(h => h.offset === 0);
@@ -1470,6 +1460,34 @@ function setupEventListeners() {
 
   ghostToggle.onchange = () => {
     state.display.ghostHand = ghostToggle.checked;
+    saveSettings();
+  };
+
+  singleHandToggle.onchange = () => {
+    state.display.singleHand = singleHandToggle.checked;
+    
+    if (state.lapTimer.ghost) {
+      state.lapTimer.ghost = calculateGhostHand(Date.now());
+    }
+    
+    if (state.intervalTimer.sessionStart && state.intervalTimer.ghostColor) {
+      const now = Date.now();
+      if (state.display.singleHand) {
+        const redHand = state.lapTimer.hands.find(h => h.offset === 0);
+        state.intervalTimer.ghostColor = redHand.color;
+        state.intervalTimer.ghostHandOffset = 0;
+        const baseSeconds = (now / 1000) % 60;
+        state.intervalTimer.ghostSeconds = baseSeconds % 60;
+      } else {
+        const ghostHand = calculateGhostHand(now);
+        state.intervalTimer.ghostColor = ghostHand.color;
+        const chosenHand = state.lapTimer.hands.find(h => h.color === ghostHand.color);
+        state.intervalTimer.ghostHandOffset = chosenHand ? chosenHand.offset : 0;
+        const baseSeconds = (now / 1000) % 60;
+        state.intervalTimer.ghostSeconds = (baseSeconds + state.intervalTimer.ghostHandOffset) % 60;
+      }
+    }
+    
     saveSettings();
   };
 
