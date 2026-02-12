@@ -284,16 +284,18 @@ function drawStraightHand(ctx, cx, cy, angle, length, color, width) {
 }
 
 function drawTaperedHand(ctx, cx, cy, angle, length, color, baseWidth) {
-  const tipWidth = baseWidth * 0.2;
+  // Increase base width for tapered hands to compensate for visual thinning
+  const adjustedBaseWidth = baseWidth * 1.4;
+  const tipWidth = adjustedBaseWidth * 0.2;
   const perpAngle = angle + Math.PI / 2;
   
   const baseLeft = {
-    x: cx + Math.cos(perpAngle) * (baseWidth / 2),
-    y: cy + Math.sin(perpAngle) * (baseWidth / 2)
+    x: cx + Math.cos(perpAngle) * (adjustedBaseWidth / 2),
+    y: cy + Math.sin(perpAngle) * (adjustedBaseWidth / 2)
   };
   const baseRight = {
-    x: cx - Math.cos(perpAngle) * (baseWidth / 2),
-    y: cy - Math.sin(perpAngle) * (baseWidth / 2)
+    x: cx - Math.cos(perpAngle) * (adjustedBaseWidth / 2),
+    y: cy - Math.sin(perpAngle) * (adjustedBaseWidth / 2)
   };
   
   const tipX = cx + Math.cos(angle) * length;
@@ -450,11 +452,12 @@ function drawClock() {
       const ghostWidth = baseWidth;
       
       if (currentStyle === 'tapered') {
-        const tipWidth = ghostWidth * 0.2;
+        const adjustedGhostWidth = ghostWidth * 1.4;
+        const tipWidth = adjustedGhostWidth * 0.2;
         const perpAngle = a + Math.PI / 2;
         
-        const baseLeft = { x: cx + Math.cos(perpAngle) * ((ghostWidth + 3) / 2), y: cy + Math.sin(perpAngle) * ((ghostWidth + 3) / 2) };
-        const baseRight = { x: cx - Math.cos(perpAngle) * ((ghostWidth + 3) / 2), y: cy - Math.sin(perpAngle) * ((ghostWidth + 3) / 2) };
+        const baseLeft = { x: cx + Math.cos(perpAngle) * ((adjustedGhostWidth + 3) / 2), y: cy + Math.sin(perpAngle) * ((adjustedGhostWidth + 3) / 2) };
+        const baseRight = { x: cx - Math.cos(perpAngle) * ((adjustedGhostWidth + 3) / 2), y: cy - Math.sin(perpAngle) * ((adjustedGhostWidth + 3) / 2) };
         const tipX = cx + Math.cos(a) * length;
         const tipY = cy + Math.sin(a) * length;
         const tipLeft = { x: tipX + Math.cos(perpAngle) * ((tipWidth + 3) / 2), y: tipY + Math.sin(perpAngle) * ((tipWidth + 3) / 2) };
@@ -531,11 +534,12 @@ function drawClock() {
       const ghostWidth = baseWidth * 1.3;
       
       if (currentStyle === 'tapered') {
-        const tipWidth = ghostWidth * 0.2;
+        const adjustedGhostWidth = ghostWidth * 1.4;
+        const tipWidth = adjustedGhostWidth * 0.2;
         const perpAngle = a + Math.PI / 2;
         
-        const baseLeft = { x: cx + Math.cos(perpAngle) * ((ghostWidth + 3) / 2), y: cy + Math.sin(perpAngle) * ((ghostWidth + 3) / 2) };
-        const baseRight = { x: cx - Math.cos(perpAngle) * ((ghostWidth + 3) / 2), y: cy - Math.sin(perpAngle) * ((ghostWidth + 3) / 2) };
+        const baseLeft = { x: cx + Math.cos(perpAngle) * ((adjustedGhostWidth + 3) / 2), y: cy + Math.sin(perpAngle) * ((adjustedGhostWidth + 3) / 2) };
+        const baseRight = { x: cx - Math.cos(perpAngle) * ((adjustedGhostWidth + 3) / 2), y: cy - Math.sin(perpAngle) * ((adjustedGhostWidth + 3) / 2) };
         const tipX = cx + Math.cos(a) * length;
         const tipY = cy + Math.sin(a) * length;
         const tipLeft = { x: tipX + Math.cos(perpAngle) * ((tipWidth + 3) / 2), y: tipY + Math.sin(perpAngle) * ((tipWidth + 3) / 2) };
@@ -1249,6 +1253,7 @@ function resetSession() {
     state.lapTimer.digitalTimerRunning = false;
     state.lapTimer.isFinished = false;
     state.lapTimer.lapCount = 1;
+    state.lapTimer.mode = state.lapTimer.trackRest ? 'rest' : 'lap';
     
     list.innerHTML = '';
     digital.textContent = '00:00.0';
