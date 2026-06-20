@@ -8,7 +8,7 @@ You may not use this software for commercial purposes.
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Pace Clock</title>
   
   <!-- Fullscreen & Mobile -->
@@ -35,7 +35,8 @@ You may not use this software for commercial purposes.
     </header>
 
     <div id="totalClock" aria-label="Total session time">00:00.0</div>
-    <div id="digital" aria-label="Current interval time" aria-live="polite">00:00.0</div>
+    <div id="digital" aria-label="Current interval time">00:00.0</div>
+    <div id="srStatus" class="sr-only" role="status" aria-live="polite"></div>
 
     <canvas 
       id="clock" 
@@ -48,7 +49,7 @@ You may not use this software for commercial purposes.
 
     <!-- Lap Timer Controls -->
     <div id="lapTimerControls" class="controls-container" role="toolbar" aria-label="Session controls">
-      <button id="saveBtn" aria-label="Save session"><span>💾 Save</span></button>
+      <button id="saveBtn" aria-label="Finish or save session"><span id="saveBtnText">Finish 🏁</span></button>
       <button id="toggleRestBtn" aria-label="Toggle rest tracking"><span>Rest ☐</span></button>
       <button id="resetBtn" aria-label="Hold to reset session"><span>🔄 Reset</span></button>
     </div>
@@ -113,27 +114,32 @@ You may not use this software for commercial purposes.
     <h2 id="optionsTitle">Settings</h2>
     
     <div class="settings-section">
-      <h3>Display</h3>
-      <label>
-        <input type="checkbox" id="darkToggle" checked aria-describedby="darkDesc">
-        Dark clock face
-      </label>
-      <span id="darkDesc" class="sr-only">Toggle between dark and light clock face</span>
-      <br><br>
-      
-      <label>
-        <input type="checkbox" id="ghostToggle" checked aria-describedby="ghostDesc">
-        Show Ghost Hand
-      </label>
-      <span id="ghostDesc" class="sr-only">Display ghost hand showing previous lap position</span>
-      <br><br>
-      
-      <label>
-        <input type="checkbox" id="singleHandToggle" aria-describedby="singleDesc">
-        Single Hand Mode
-      </label>
-      <span id="singleDesc" class="sr-only">Show only the red hand instead of all four hands</span>
-      <br><br>
+      <h3>Settings</h3>
+      <div class="checkbox-group">
+        <label>
+          <input type="checkbox" id="darkToggle" checked aria-describedby="darkDesc">
+          Dark clock face
+        </label>
+        <span id="darkDesc" class="sr-only">Toggle between dark and light clock face</span>
+        
+        <label>
+          <input type="checkbox" id="ghostToggle" checked aria-describedby="ghostDesc">
+          Show Ghost Hand
+        </label>
+        <span id="ghostDesc" class="sr-only">Display ghost hand showing previous lap position</span>
+        
+        <label>
+          <input type="checkbox" id="singleHandToggle" aria-describedby="singleDesc">
+          Single Hand Mode
+        </label>
+        <span id="singleDesc" class="sr-only">Show only the red hand instead of all four hands</span>
+        
+        <label>
+          <input type="checkbox" id="guardToggle" checked aria-describedby="guardDesc">
+          Accidental press guard
+        </label>
+        <span id="guardDesc" class="sr-only">Prevent accidental double-taps within 1 second</span>
+      </div>
       
       <div class="hand-style-section">
         <p class="hand-style-label">Clock Hand Style</p>
@@ -171,29 +177,17 @@ You may not use this software for commercial purposes.
         </div>
       </div>
     </div>
-
-    <div class="settings-section" id="lapTimerSettings">
-      <h3>Lap Timer</h3>
-      <label>
-        <input type="checkbox" id="guardToggle" checked aria-describedby="guardDesc">
-        Accidental press guard
-      </label>
-      <span id="guardDesc" class="sr-only">Prevent accidental double-taps within 1 second</span>
-      <br><br>
-    </div>
     
     <button id="closeSettings" aria-label="Close settings">Close</button>
     
     <div class="keyboard-shortcuts">
       <h3>Keyboard Shortcuts</h3>
       <ul>
-        <li><kbd>Space</kbd> - Record lap/rest</li>
-        <li><kbd>Ctrl+S</kbd> - Save session (hold completes)</li>
-        <li><kbd>Shift+Delete</kbd> - Reset session (hold completes)</li>
+        <li><kbd>Space</kbd> - Lap/Rest</li>
+        <li><kbd>Ctrl+S</kbd> - Finish</li>
+        <li><kbd>Shift+Del</kbd> - Reset</li>
       </ul>
-      <p style="margin-top: 12px; font-size: 0.85rem; color: var(--muted);">
-        <strong>Mobile:</strong> Hold Save or Reset buttons for 0.8 seconds
-      </p>
+      <p><strong>Mobile:</strong> Hold buttons for 0.8s</p>
     </div>
   </div>
 
@@ -261,6 +255,10 @@ You may not use this software for commercial purposes.
   <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
+      // If a controller already exists, this is a returning visit (not a first install),
+      // so a later SW_UPDATED message really does mean "new version available".
+      const hadController = !!navigator.serviceWorker.controller;
+
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('service-worker.js')
           .then(registration => {
@@ -269,7 +267,27 @@ You may not use this software for commercial purposes.
           .catch(error => {
             console.error('Service Worker registration failed:', error);
           });
+
+        navigator.serviceWorker.addEventListener('message', event => {
+          if (event.data && event.data.type === 'SW_UPDATED' && hadController) {
+            showUpdateBanner();
+          }
+        });
       });
+
+      function showUpdateBanner() {
+        if (document.getElementById('updateBanner')) return;
+        const banner = document.createElement('div');
+        banner.id = 'updateBanner';
+        banner.setAttribute('role', 'button');
+        banner.setAttribute('tabindex', '0');
+        banner.textContent = 'Update ready — tap to refresh';
+        banner.onclick = () => location.reload();
+        banner.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') location.reload();
+        });
+        document.body.appendChild(banner);
+      }
     }
   </script>
 </body>

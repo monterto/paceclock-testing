@@ -1,74 +1,241 @@
-const CACHE_NAME = 'pace-clock-testing-v11';
+const CACHE_NAME = 'pace-clock-v7'; // Increment when assets change
 
 const ASSETS = [
-  './',
-  './index.html',
-  './app.js',
-  './style.css',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './',                    // Root path
+  './index.html',          // Main HTML
+  './manifest.json',       // PWA manifest
+  './style.css',           // Styles
+  './app.js',              // Application logic
+  './icons/icon-192.png',  // App icon 192x192
+  './icons/icon-512.png'   // App icon 512x512
 ];
 
-// Install event - cache all assets
+// ============================================================================
+// INSTALL - Pre-cache all essential assets
+// ============================================================================
 self.addEventListener('install', event => {
-  console.log('[Service Worker] Installing...');
+  console.log('[SW] Installing service worker...');
+
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('[Service Worker] Caching all assets');
-        return cache.addAll(ASSETS);
+      .then(async cache => {
+        console.log('[SW] Caching app shell and assets');
+
+        // Cache each asset independently so one bad/missing file (e.g. a
+        // renamed icon) doesn't take down offline support for everything else.
+        const results = await Promise.allSettled(
+          ASSETS.map(asset => cache.add(asset))
+        );
+
+        results.forEach((result, i) => {
+          if (result.status === 'rejected') {
+            console.error('[SW] Failed to cache asset:', ASSETS[i], result.reason);
+          }
+        });
+
+        // The app shell itself is the one asset we can't function without -
+        // treat a failure to cache it as a real install failure.
+        const shellIndex = ASSETS.indexOf('./index.html');
+        if (shellIndex !== -1 && results[shellIndex].status === 'rejected') {
+          throw new Error('Failed to cache critical app shell (index.html)');
+        }
       })
-      .then(() => self.skipWaiting())
-      .catch(err => console.error('[Service Worker] Cache failed:', err))
+      .then(() => {
+        console.log('[SW] Asset caching complete');
+        // Skip waiting to activate immediately
+        return self.skipWaiting();
+      })
+      .catch(error => {
+        console.error('[SW] Cache installation failed:', error);
+        throw error;
+      })
   );
 });
 
-// Activate event - clean up old caches
+// ============================================================================
+// ACTIVATE - Clean up old caches and take control
+// ============================================================================
 self.addEventListener('activate', event => {
-  console.log('[Service Worker] Activating...');
+  console.log('[SW] Activating service worker...');
+  
   event.waitUntil(
+    // Delete all caches except current version
     caches.keys()
-      .then(keys => {
+      .then(cacheNames => {
         return Promise.all(
-          keys
-            .filter(key => key !== CACHE_NAME)
-            .map(key => {
-              console.log('[Service Worker] Deleting old cache:', key);
-              return caches.delete(key);
+          cacheNames
+            .filter(cacheName => cacheName !== CACHE_NAME)
+            .map(cacheName => {
+              console.log('[SW] Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
             })
         );
       })
-      .then(() => self.clients.claim())
-  );
-});
-
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          console.log('[Service Worker] Serving from cache:', event.request.url);
-          return response;
-        }
-        
-        console.log('[Service Worker] Fetching from network:', event.request.url);
-        return fetch(event.request)
-          .then(networkResponse => {
-            // Optionally cache new resources
-            if (event.request.method === 'GET' && networkResponse.status === 200) {
-              const responseClone = networkResponse.clone();
-              caches.open(CACHE_NAME).then(cache => {
-                cache.put(event.request, responseClone);
-              });
-            }
-            return networkResponse;
-          })
-          .catch(err => {
-            console.error('[Service Worker] Fetch failed:', err);
-            throw err;
-          });
+      .then(() => {
+        console.log('[SW] Old caches cleaned up');
+        // Take control of all pages immediately
+        return self.clients.claim();
+      })
+      .then(() => self.clients.matchAll())
+      .then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'SW_UPDATED', cacheVersion: CACHE_NAME });
+        });
+      })
+      .catch(error => {
+        console.error('[SW] Activation failed:', error);
+        throw error;
       })
   );
 });
+
+// ============================================================================
+// FETCH - Aggressive cache-first strategy with fallbacks
+// ============================================================================
+self.addEventListener('fetch', event => {
+  const { request } = event;
+  
+  // Only handle GET requests
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  event.respondWith(
+    handleFetch(request)
+      .catch(error => {
+        console.error('[SW] Fetch handler error:', error);
+        // Final fallback for navigation requests
+        if (request.mode === 'navigate') {
+          return caches.match('./index.html')
+            .then(response => response || caches.match('./'));
+        }
+        // Return error for non-navigation requests
+        return new Response('Offline - Asset not cached', {
+          status: 503,
+          statusText: 'Service Unavailable'
+        });
+      })
+  );
+});
+
+/**
+ * Handle fetch with comprehensive offline-first strategy
+ */
+async function handleFetch(request) {
+  // 1. Try to get from cache first (OFFLINE-FIRST)
+  const cachedResponse = await caches.match(request);
+  
+  if (cachedResponse) {
+    console.log('[SW] Serving from cache:', request.url);
+    
+    // Update cache in background if online (don't wait for it)
+    if (navigator.onLine) {
+      updateCacheInBackground(request).catch(() => {
+        // Silently fail - we already have cached version
+      });
+    }
+    
+    return cachedResponse;
+  }
+
+  // 2. Not in cache - try network
+  console.log('[SW] Cache miss, trying network:', request.url);
+  
+  try {
+    const networkResponse = await fetch(request);
+    
+    // If successful, cache the response for next time
+    if (networkResponse && networkResponse.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      // Clone response because it can only be consumed once
+      cache.put(request, networkResponse.clone());
+      console.log('[SW] Cached new resource:', request.url);
+    }
+    
+    return networkResponse;
+    
+  } catch (networkError) {
+    console.warn('[SW] Network request failed:', request.url, networkError.message);
+    
+    // 3. Network failed - try cache without query params
+    const urlWithoutParams = stripQueryParams(request.url);
+    if (urlWithoutParams !== request.url) {
+      const fallbackResponse = await caches.match(urlWithoutParams);
+      if (fallbackResponse) {
+        console.log('[SW] Serving from cache (without params):', urlWithoutParams);
+        return fallbackResponse;
+      }
+    }
+    
+    // 4. For navigation requests, serve index.html as fallback
+    if (request.mode === 'navigate') {
+      console.log('[SW] Navigation request failed, serving index.html');
+      const indexResponse = await caches.match('./index.html');
+      if (indexResponse) {
+        return indexResponse;
+      }
+      
+      // Try root as final fallback
+      const rootResponse = await caches.match('./');
+      if (rootResponse) {
+        return rootResponse;
+      }
+    }
+    
+    // 5. Nothing worked - throw error to be caught by outer handler
+    throw new Error(`Failed to fetch: ${request.url}`);
+  }
+}
+
+/**
+ * Update cache in background (don't block response)
+ */
+async function updateCacheInBackground(request) {
+  try {
+    const networkResponse = await fetch(request);
+    
+    if (networkResponse && networkResponse.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, networkResponse);
+      console.log('[SW] Background cache update:', request.url);
+    }
+  } catch (error) {
+    // Background update failed - not critical since we have cached version
+    console.log('[SW] Background update failed (expected if offline):', request.url);
+  }
+}
+
+/**
+ * Remove query parameters from URL
+ */
+function stripQueryParams(url) {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.origin + urlObj.pathname;
+  } catch (error) {
+    return url;
+  }
+}
+
+// ============================================================================
+// MESSAGE HANDLER - Allow pages to communicate with service worker
+// ============================================================================
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] Skip waiting requested');
+    self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === 'CACHE_URLS') {
+    console.log('[SW] Manual cache request for:', event.data.urls);
+    event.waitUntil(
+      caches.open(CACHE_NAME)
+        .then(cache => cache.addAll(event.data.urls))
+        .then(() => {
+          console.log('[SW] Manual cache completed');
+        })
+    );
+  }
+});
+
+console.log('[SW] Service worker script loaded');
